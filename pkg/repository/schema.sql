@@ -13,16 +13,16 @@ CREATE TABLE `repositories` (
 	`private` BOOLEAN NOT NULL,
 	`created_at` DATETIME NOT NULL,
 	`updated_at` DATETIME NOT NULL,
-	PRIMARY KEY (`id`),
+	`last_synced_at` DATETIME NOT NULL,
+	PRIMARY KEY (`id`)
 );
 
 CREATE TABLE `repository_stars` (
-	`id` INT NOT NULL AUTO_INCREMENT,
 	`repository_id` INT NOT NULL,
 	`user_id` INT NOT NULL,
 	`created_at` DATETIME NOT NULL,
 	`updated_at` DATETIME NOT NULL,
-	PRIMARY KEY (`id`),
+	PRIMARY KEY (`repository_id`, `user_id`),
 	FOREIGN KEY (`repository_id`) REFERENCES `repositories` (`id`) ON DELETE CASCADE,
 	FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 );
@@ -32,6 +32,8 @@ CREATE TABLE `releases` (
 	`repository_id` INT NOT NULL,
 	`tag_name` VARCHAR(255) NOT NULL,
 	`description` TEXT NOT NULL,
+	`is_prerelease` BOOLEAN NOT NULL,
+	`released_at` DATETIME NOT NULL,
 	`created_at` DATETIME NOT NULL,
 	`updated_at` DATETIME NOT NULL,
 	PRIMARY KEY (`id`),

@@ -8,7 +8,33 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"time"
 )
+
+const createRepository = `-- name: CreateRepository :exec
+INSERT INTO repositories (name, url, private, created_at, updated_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?)
+`
+
+type CreateRepositoryParams struct {
+	Name         string
+	Url          string
+	Private      bool
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	LastSyncedAt time.Time
+}
+
+func (q *Queries) CreateRepository(ctx context.Context, arg CreateRepositoryParams) error {
+	_, err := q.db.ExecContext(ctx, createRepository,
+		arg.Name,
+		arg.Url,
+		arg.Private,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.LastSyncedAt,
+	)
+	return err
+}
 
 const createUser = `-- name: CreateUser :execresult
 INSERT INTO users (username, refresh_token) VALUES (?, ?)
@@ -23,6 +49,123 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (sql.Res
 	return q.db.ExecContext(ctx, createUser, arg.Username, arg.RefreshToken)
 }
 
+const deleteLastXReleases = `-- name: DeleteLastXReleases :execresult
+DELETE FROM releases WHERE id IN (SELECT id FROM releases AS r WHERE r.repository_id = ? ORDER BY r.released_at DESC LIMIT ?)
+`
+
+type DeleteLastXReleasesParams struct {
+	RepositoryID int32
+	Limit        int32
+}
+
+func (q *Queries) DeleteLastXReleases(ctx context.Context, arg DeleteLastXReleasesParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, deleteLastXReleases, arg.RepositoryID, arg.Limit)
+}
+
+const deleteRepositoryStarsUpdatedBefore = `-- name: DeleteRepositoryStarsUpdatedBefore :execresult
+DELETE FROM repository_stars WHERE updated_at < ? AND user_id = ?
+`
+
+type DeleteRepositoryStarsUpdatedBeforeParams struct {
+	UpdatedAt time.Time
+	UserID    int32
+}
+
+func (q *Queries) DeleteRepositoryStarsUpdatedBefore(ctx context.Context, arg DeleteRepositoryStarsUpdatedBeforeParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, deleteRepositoryStarsUpdatedBefore, arg.UpdatedAt, arg.UserID)
+}
+
+const getReleases = `-- name: GetReleases :many
+SELECT id, repository_id, tag_name, description, is_prerelease, released_at, created_at, updated_at FROM releases WHERE repository_id = ? ORDER BY released_at DESC
+`
+
+func (q *Queries) GetReleases(ctx context.Context, repositoryID int32) ([]Release, error) {
+	rows, err := q.db.QueryContext(ctx, getReleases, repositoryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Release
+	for rows.Next() {
+		var i Release
+		if err := rows.Scan(
+			&i.ID,
+			&i.RepositoryID,
+			&i.TagName,
+			&i.Description,
+			&i.IsPrerelease,
+			&i.ReleasedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getReleasesForUser = `-- name: GetReleasesForUser :many
+SELECT releases.id, releases.repository_id, releases.tag_name, releases.description, releases.is_prerelease, releases.released_at, releases.created_at, releases.updated_at FROM ` + "`" + `releases` + "`" + ` INNER JOIN ` + "`" + `repository_stars` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repository_stars` + "`" + `.` + "`" + `repository_id` + "`" + ` WHERE ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ?
+`
+
+func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]Release, error) {
+	rows, err := q.db.QueryContext(ctx, getReleasesForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Release
+	for rows.Next() {
+		var i Release
+		if err := rows.Scan(
+			&i.ID,
+			&i.RepositoryID,
+			&i.TagName,
+			&i.Description,
+			&i.IsPrerelease,
+			&i.ReleasedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRepositoryByName = `-- name: GetRepositoryByName :one
+SELECT id, name, url, private, created_at, updated_at, last_synced_at FROM repositories WHERE name = ?
+`
+
+func (q *Queries) GetRepositoryByName(ctx context.Context, name string) (Repository, error) {
+	row := q.db.QueryRowContext(ctx, getRepositoryByName, name)
+	var i Repository
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Url,
+		&i.Private,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastSyncedAt,
+	)
+	return i, err
+}
+
 const getUserByUsername = `-- name: GetUserByUsername :one
 SELECT id, username, refresh_token FROM users WHERE username = ?
 `
@@ -32,4 +175,66 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 	var i User
 	err := row.Scan(&i.ID, &i.Username, &i.RefreshToken)
 	return i, err
+}
+
+const insertRelease = `-- name: InsertRelease :exec
+INSERT INTO releases (repository_id, tag_name, description, released_at, created_at, updated_at, is_prerelease) VALUES (?, ?, ?, ?, ?, ?, ?)
+`
+
+type InsertReleaseParams struct {
+	RepositoryID int32
+	TagName      string
+	Description  string
+	ReleasedAt   time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	IsPrerelease bool
+}
+
+func (q *Queries) InsertRelease(ctx context.Context, arg InsertReleaseParams) error {
+	_, err := q.db.ExecContext(ctx, insertRelease,
+		arg.RepositoryID,
+		arg.TagName,
+		arg.Description,
+		arg.ReleasedAt,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.IsPrerelease,
+	)
+	return err
+}
+
+const insertRepositoryStar = `-- name: InsertRepositoryStar :exec
+INSERT INTO repository_stars (repository_id, user_id, created_at, updated_at) VALUES (?, ?, ?, ?)
+`
+
+type InsertRepositoryStarParams struct {
+	RepositoryID int32
+	UserID       int32
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+func (q *Queries) InsertRepositoryStar(ctx context.Context, arg InsertRepositoryStarParams) error {
+	_, err := q.db.ExecContext(ctx, insertRepositoryStar,
+		arg.RepositoryID,
+		arg.UserID,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	return err
+}
+
+const updateRepositoryStar = `-- name: UpdateRepositoryStar :execresult
+UPDATE repository_stars SET updated_at = ? WHERE repository_id = ? AND user_id = ?
+`
+
+type UpdateRepositoryStarParams struct {
+	UpdatedAt    time.Time
+	RepositoryID int32
+	UserID       int32
+}
+
+func (q *Queries) UpdateRepositoryStar(ctx context.Context, arg UpdateRepositoryStarParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, updateRepositoryStar, arg.UpdatedAt, arg.RepositoryID, arg.UserID)
 }

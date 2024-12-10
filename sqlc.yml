@@ -5,5 +5,7 @@ sql:
     schema: "pkg/repository/schema.sql"
     gen:
       go:
+        sql_package: "database/sql"
+        sql_driver: "github.com/go-sql-driver/mysql"
         package: "repository"
         out: "pkg/repository"

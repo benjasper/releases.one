@@ -4,6 +4,38 @@
 
 package repository
 
+import (
+	"time"
+)
+
+type Release struct {
+	ID           int32
+	RepositoryID int32
+	TagName      string
+	Description  string
+	IsPrerelease bool
+	ReleasedAt   time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type Repository struct {
+	ID           int32
+	Name         string
+	Url          string
+	Private      bool
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	LastSyncedAt time.Time
+}
+
+type RepositoryStar struct {
+	RepositoryID int32
+	UserID       int32
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
 type User struct {
 	ID           int32
 	Username     string

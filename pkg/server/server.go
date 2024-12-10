@@ -3,13 +3,13 @@ package server
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
+	"slices"
 	"time"
 
+	"github.com/benjasper/releases.one/pkg/github"
 	"github.com/benjasper/releases.one/pkg/repository"
 	"golang.org/x/oauth2"
 )
@@ -53,7 +53,10 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 	}
 
 	client := s.githubOAuthConfig.Client(r.Context(), token)
-	githubUser, err := s.retrieveUserData(client)
+
+	githubService := github.NewGitHubService(client)
+
+	githubUser, err := githubService.GetUserData(r.Context())
 	if err != nil {
 		http.Error(w, "Failed to retrieve user data: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -81,101 +84,111 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	fmt.Fprintf(w, "User: %+v", user)
+	log.Printf("Syncing user: %s", user.Username)
+	log.Printf("Token: %s", token.AccessToken)
 
-	retrieveStarredRepos(client, w)
-}
-
-type UserData struct {
-	Login                   string    `json:"login"`
-	ID                      int       `json:"id"`
-	NodeID                  string    `json:"node_id"`
-	AvatarURL               string    `json:"avatar_url"`
-	GravatarID              string    `json:"gravatar_id"`
-	URL                     string    `json:"url"`
-	HTMLURL                 string    `json:"html_url"`
-	FollowersURL            string    `json:"followers_url"`
-	FollowingURL            string    `json:"following_url"`
-	GistsURL                string    `json:"gists_url"`
-	StarredURL              string    `json:"starred_url"`
-	SubscriptionsURL        string    `json:"subscriptions_url"`
-	OrganizationsURL        string    `json:"organizations_url"`
-	ReposURL                string    `json:"repos_url"`
-	EventsURL               string    `json:"events_url"`
-	ReceivedEventsURL       string    `json:"received_events_url"`
-	Type                    string    `json:"type"`
-	SiteAdmin               bool      `json:"site_admin"`
-	Name                    string    `json:"name"`
-	Company                 string    `json:"company"`
-	Blog                    string    `json:"blog"`
-	Location                string    `json:"location"`
-	Email                   string    `json:"email"`
-	Hireable                bool      `json:"hireable"`
-	Bio                     string    `json:"bio"`
-	TwitterUsername         string    `json:"twitter_username"`
-	PublicRepos             int       `json:"public_repos"`
-	PublicGists             int       `json:"public_gists"`
-	Followers               int       `json:"followers"`
-	Following               int       `json:"following"`
-	CreatedAt               time.Time `json:"created_at"`
-	UpdatedAt               time.Time `json:"updated_at"`
-	PrivateGists            int       `json:"private_gists"`
-	TotalPrivateRepos       int       `json:"total_private_repos"`
-	OwnedPrivateRepos       int       `json:"owned_private_repos"`
-	DiskUsage               int       `json:"disk_usage"`
-	Collaborators           int       `json:"collaborators"`
-	TwoFactorAuthentication bool      `json:"two_factor_authentication"`
-	Plan                    struct {
-		Name          string `json:"name"`
-		Space         int    `json:"space"`
-		PrivateRepos  int    `json:"private_repos"`
-		Collaborators int    `json:"collaborators"`
-	} `json:"plan"`
-}
-
-func (s *Server) retrieveUserData(client *http.Client) (*UserData, error) {
-	url := "https://api.github.com/user"
-	resp, err := client.Get(url)
+	err = s.syncUser(r.Context(), token, &user)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("failed to fetch user data"))
+		http.Error(w, "Failed to sync user: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("unexpected response from GitHub")
-	}
-
-	var userData UserData
-	if err := json.NewDecoder(resp.Body).Decode(&userData); err != nil {
-		return nil, errors.Join(err, errors.New("failed to decode response"))
-	}
-
-	return &userData, nil
 }
 
-func retrieveStarredRepos(client *http.Client, w http.ResponseWriter) {
-	url := "https://api.github.com/user/starred"
-	resp, err := client.Get(url)
+func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *repository.User) error {
+	client := s.githubOAuthConfig.Client(ctx, token)
+
+	syncStartedAt := time.Now()
+
+	githubService := github.NewGitHubService(client)
+
+	response, err := githubService.GetStarredRepos(ctx)
 	if err != nil {
-		http.Error(w, "Failed to fetch starred repos: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		http.Error(w, "Unexpected response from GitHub: "+resp.Status, resp.StatusCode)
-		return
+		return err
 	}
 
-	var starredRepos []map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&starredRepos); err != nil {
-		http.Error(w, "Failed to decode response: "+err.Error(), http.StatusInternalServerError)
-		return
+	for _, repo := range response.Data.Viewer.StarredRepositories.Nodes {
+		githubRepo, err := s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
+		if err != nil && errors.Is(err, sql.ErrNoRows) {
+			log.Printf("No repository found, creating new repository: %s", repo.NameWithOwner)
+
+			err = s.repository.CreateRepository(ctx, repository.CreateRepositoryParams{
+				Name:         repo.NameWithOwner,
+				Url:          repo.URL,
+				Private:      repo.IsPrivate,
+				CreatedAt:    time.Now(),
+				UpdatedAt:    time.Now(),
+				LastSyncedAt: time.Now(),
+			})
+			if err != nil {
+				return err
+			}
+
+			githubRepo, err = s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Now check if the repository has already been starred by the user
+		result, err := s.repository.UpdateRepositoryStar(ctx, repository.UpdateRepositoryStarParams{
+			UpdatedAt:    time.Now(),
+			RepositoryID: githubRepo.ID,
+			UserID:       user.ID,
+		})
+		starRowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+
+		if starRowsAffected == 0 {
+			log.Printf("No repository star found, creating new repository star: %s", repo.NameWithOwner)
+			err = s.repository.InsertRepositoryStar(ctx, repository.InsertRepositoryStarParams{
+				RepositoryID: githubRepo.ID,
+				UserID:       user.ID,
+				CreatedAt:    time.Now(),
+				UpdatedAt:    time.Now(),
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		releases, err := s.repository.GetReleases(ctx, githubRepo.ID)
+		if err != nil {
+			return err
+		}
+
+		for _, ghRelease := range repo.Releases.Nodes {
+			releaseExists := slices.ContainsFunc(releases, func(release repository.Release) bool {
+				return release.TagName == ghRelease.TagName
+			})
+
+			if !releaseExists {
+				log.Printf("Release not found, creating new release: %s", ghRelease.TagName)
+				err = s.repository.InsertRelease(ctx, repository.InsertReleaseParams{
+					RepositoryID: githubRepo.ID,
+					TagName:      ghRelease.TagName,
+					Description:  ghRelease.DescriptionHTML,
+					ReleasedAt:   ghRelease.PublishedAt,
+					IsPrerelease: ghRelease.IsPrerelease,
+					CreatedAt:    time.Now(),
+					UpdatedAt:    time.Now(),
+				})
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		s.repository.DeleteLastXReleases(ctx, repository.DeleteLastXReleasesParams{
+			Limit: 10,
+			RepositoryID: githubRepo.ID,
+		})
 	}
 
-	// Display the starred repos
-	fmt.Fprintf(w, "Starred Repositories:\n")
-	for _, repo := range starredRepos {
-		fmt.Fprintf(w, "- %s (URL: %s)\n", repo["name"], repo["html_url"])
-	}
+	s.repository.DeleteRepositoryStarsUpdatedBefore(ctx, repository.DeleteRepositoryStarsUpdatedBeforeParams{
+		UpdatedAt: syncStartedAt,
+	})
+
+	return nil
 }
