@@ -11,6 +11,8 @@ import (
 type Release struct {
 	ID           int32
 	RepositoryID int32
+	Name         string
+	Url          string
 	TagName      string
 	Description  string
 	IsPrerelease bool
@@ -27,6 +29,7 @@ type Repository struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	LastSyncedAt time.Time
+	ImageUrl     string
 }
 
 type RepositoryStar struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"slices"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/benjasper/releases.one/pkg/github"
 	"github.com/benjasper/releases.one/pkg/repository"
+	"github.com/gorilla/feeds"
 	"golang.org/x/oauth2"
 )
 
@@ -32,6 +34,7 @@ func (s *Server) Start() {
 
 	mux.HandleFunc("/login/github", s.GetLoginWithGithub)
 	mux.HandleFunc("/github", s.GetLoginWithGithubCallback)
+	mux.HandleFunc("/feed/{username}", s.GetFeed)
 
 	log.Println("Starting server on port 80")
 	http.ListenAndServe(":80", mux)
@@ -89,6 +92,7 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 
 	err = s.syncUser(r.Context(), token, &user)
 	if err != nil {
+		log.Printf("Failed to sync user: %s", err.Error())
 		http.Error(w, "Failed to sync user: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -101,12 +105,11 @@ func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *reposi
 
 	githubService := github.NewGitHubService(client)
 
-	response, err := githubService.GetStarredRepos(ctx)
-	if err != nil {
-		return err
-	}
+	for repo, err := range githubService.GetStarredRepos(ctx) {
+		if err != nil {
+			return err
+		}
 
-	for _, repo := range response.Data.Viewer.StarredRepositories.Nodes {
 		githubRepo, err := s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
 		if err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Printf("No repository found, creating new repository: %s", repo.NameWithOwner)
@@ -114,6 +117,7 @@ func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *reposi
 			err = s.repository.CreateRepository(ctx, repository.CreateRepositoryParams{
 				Name:         repo.NameWithOwner,
 				Url:          repo.URL,
+				ImageUrl:     repo.OpenGraphImageURL,
 				Private:      repo.IsPrivate,
 				CreatedAt:    time.Now(),
 				UpdatedAt:    time.Now(),
@@ -167,7 +171,9 @@ func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *reposi
 				log.Printf("Release not found, creating new release: %s", ghRelease.TagName)
 				err = s.repository.InsertRelease(ctx, repository.InsertReleaseParams{
 					RepositoryID: githubRepo.ID,
+					Name:         ghRelease.Name,
 					TagName:      ghRelease.TagName,
+					Url:          ghRelease.URL,
 					Description:  ghRelease.DescriptionHTML,
 					ReleasedAt:   ghRelease.PublishedAt,
 					IsPrerelease: ghRelease.IsPrerelease,
@@ -181,7 +187,7 @@ func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *reposi
 		}
 
 		s.repository.DeleteLastXReleases(ctx, repository.DeleteLastXReleasesParams{
-			Limit: 10,
+			Limit:        10,
 			RepositoryID: githubRepo.ID,
 		})
 	}
@@ -191,4 +197,47 @@ func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *reposi
 	})
 
 	return nil
+}
+
+func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
+	username := r.PathValue("username")
+
+	user, err := s.repository.GetUserByUsername(r.Context(), username)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("User not found"))
+		return
+	}
+
+	releases, err := s.repository.GetReleasesForUser(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, "Failed to retrieve releases: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	feed := &feeds.Feed{
+		Title:       "My GitHub Releases",
+		Link:        &feeds.Link{Href: "https://releases.one"},
+		Description: "A list of all the releases for all of your starred GitHub repositories",
+		Author:      &feeds.Author{Name: "Benjamin Jasper"},
+		Created:     time.Now(),
+	}
+
+	for _, release := range releases {
+		feed.Items = append(feed.Items, &feeds.Item{
+			Title:       fmt.Sprintf("%s %s", release.RepositoryName.String, release.Name),
+			Link:        &feeds.Link{Href: release.Url},
+			Description: release.Description,
+			Created:     release.ReleasedAt,
+		})
+	}
+
+	atom, err := feed.ToAtom()
+	if err != nil {
+		http.Error(w, "Failed to convert feed to atom: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/atom+xml")
+	w.Write([]byte(atom))
 }

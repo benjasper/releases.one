@@ -1,8 +1,11 @@
 package github
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
-var StarredReposQuery = `
+var StarredReposQueryTemplate = `
 query {
   rateLimit {
     limit
@@ -11,7 +14,7 @@ query {
     resetAt
   }
   viewer {
-    starredRepositories(first: 50, after: "") {
+    starredRepositories(first: %d, after: "%s") {
       pageInfo {
         hasNextPage
         endCursor
@@ -19,15 +22,15 @@ query {
       nodes {
         nameWithOwner
 	    url
+		openGraphImageUrl
 	    isPrivate
         releases(first: 3, orderBy: {field: CREATED_AT, direction: DESC}) {
           nodes {
             name
-            url
+            tagName
             isDraft
             isPrerelease
             publishedAt
-            tagName
             url
 			descriptionHTML
           }
@@ -37,6 +40,10 @@ query {
   }
 }
 `
+
+func StarredReposQuery(first int, after string) string {
+	return fmt.Sprintf(StarredReposQueryTemplate, first, after)
+}
 
 type StarredReposResponse struct {
 	Message string `json:"message"`
@@ -56,25 +63,28 @@ type StarredReposResponse struct {
 					HasNextPage bool   `json:"hasNextPage"`
 					EndCursor   string `json:"endCursor"`
 				} `json:"pageInfo"`
-				Nodes []struct {
-					NameWithOwner string `json:"nameWithOwner"`
-					URL           string `json:"url"`
-					IsPrivate     bool   `json:"isPrivate"`
-					Releases      struct {
-						Nodes []struct {
-							Name            string    `json:"name"`
-							URL             string    `json:"url"`
-							IsDraft         bool      `json:"isDraft"`
-							IsPrerelease    bool      `json:"isPrerelease"`
-							PublishedAt     time.Time `json:"publishedAt"`
-							TagName         string    `json:"tagName"`
-							DescriptionHTML string    `json:"descriptionHTML"`
-						} `json:"nodes"`
-					} `json:"releases"`
-				} `json:"nodes"`
+				Nodes []Repository `json:"nodes"`
 			} `json:"starredRepositories"`
 		} `json:"viewer"`
 	} `json:"data"`
+}
+
+type Repository struct {
+	NameWithOwner     string `json:"nameWithOwner"`
+	URL               string `json:"url"`
+	OpenGraphImageURL string `json:"openGraphImageUrl"`
+	IsPrivate         bool   `json:"isPrivate"`
+	Releases          struct {
+		Nodes []struct {
+			Name            string    `json:"name"`
+			URL             string    `json:"url"`
+			IsDraft         bool      `json:"isDraft"`
+			IsPrerelease    bool      `json:"isPrerelease"`
+			PublishedAt     time.Time `json:"publishedAt"`
+			TagName         string    `json:"tagName"`
+			DescriptionHTML string    `json:"descriptionHTML"`
+		} `json:"nodes"`
+	} `json:"releases"`
 }
 
 type UserData struct {
