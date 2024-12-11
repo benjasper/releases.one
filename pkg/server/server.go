@@ -39,7 +39,7 @@ func (s *Server) Start() {
 
 	scheduler, err := gocron.NewScheduler()
 	_, err = scheduler.NewJob(gocron.DurationJob(time.Minute), gocron.NewTask(func(s *Server) {
-		users, err := s.repository.GetUsersInNeedOfAnUpdate(context.Background(), time.Now().Add(time.Minute * -1))
+		users, err := s.repository.GetUsersInNeedOfAnUpdate(context.Background(), time.Now().Add(time.Hour * -12))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -141,6 +141,10 @@ func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *reposi
 			return err
 		}
 
+		if repo.IsPrivate {
+			continue
+		}
+
 		githubRepo, err := s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
 		if err != nil && errors.Is(err, sql.ErrNoRows) {
 			log.Printf("No repository found, creating new repository: %s", repo.NameWithOwner)
@@ -206,6 +210,7 @@ func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *reposi
 					TagName:      ghRelease.TagName,
 					Url:          ghRelease.URL,
 					Description:  ghRelease.DescriptionHTML,
+					Author:       sql.NullString{String: ghRelease.Author.Name, Valid: ghRelease.Author.Name != ""},
 					ReleasedAt:   ghRelease.PublishedAt,
 					IsPrerelease: ghRelease.IsPrerelease,
 					CreatedAt:    time.Now(),
@@ -260,12 +265,18 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, release := range releases {
-		feed.Items = append(feed.Items, &feeds.Item{
+		feedItem := &feeds.Item{
 			Title:       fmt.Sprintf("%s %s", release.RepositoryName.String, release.Name),
 			Link:        &feeds.Link{Href: release.Url},
 			Description: release.Description,
 			Created:     release.ReleasedAt,
-		})
+		}
+
+		if release.Author.Valid {
+			feedItem.Author = &feeds.Author{Name: release.Author.String}
+		}
+
+		feed.Items = append(feed.Items, feedItem)
 	}
 
 	atom, err := feed.ToAtom()

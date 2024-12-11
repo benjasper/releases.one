@@ -5,6 +5,7 @@
 package repository
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -15,6 +16,7 @@ type Release struct {
 	Url          string
 	TagName      string
 	Description  string
+	Author       sql.NullString
 	IsPrerelease bool
 	ReleasedAt   time.Time
 	CreatedAt    time.Time

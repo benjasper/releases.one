@@ -32,7 +32,7 @@ DELETE FROM repository_stars WHERE updated_at < ? AND user_id = ?;
 SELECT * FROM releases WHERE repository_id = ? ORDER BY released_at DESC;
 
 -- name: InsertRelease :exec
-INSERT INTO releases (repository_id, name, tag_name, url, description, released_at, created_at, updated_at, is_prerelease) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO releases (repository_id, name, author, tag_name, url, description, released_at, created_at, updated_at, is_prerelease) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: DeleteLastXReleases :execresult
 DELETE FROM releases WHERE id IN (SELECT id FROM releases AS r WHERE r.repository_id = ? ORDER BY r.released_at DESC LIMIT ?);

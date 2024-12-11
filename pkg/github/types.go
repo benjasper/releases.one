@@ -33,6 +33,9 @@ query {
             publishedAt
             url
 			descriptionHTML
+			author {
+				name
+			}
           }
         }
       }
@@ -83,6 +86,9 @@ type Repository struct {
 			PublishedAt     time.Time `json:"publishedAt"`
 			TagName         string    `json:"tagName"`
 			DescriptionHTML string    `json:"descriptionHTML"`
+			Author          struct {
+				Name string `json:"name"`
+			} `json:"author"`
 		} `json:"nodes"`
 	} `json:"releases"`
 }

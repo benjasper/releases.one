@@ -36,6 +36,7 @@ CREATE TABLE `releases` (
 	`url` VARCHAR(255) NOT NULL,
 	`tag_name` VARCHAR(255) NOT NULL,
 	`description` LONGTEXT NOT NULL,
+	`author` VARCHAR(255),
 	`is_prerelease` BOOLEAN NOT NULL,
 	`released_at` DATETIME NOT NULL,
 	`created_at` DATETIME NOT NULL,
