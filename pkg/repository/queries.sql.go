@@ -39,16 +39,17 @@ func (q *Queries) CreateRepository(ctx context.Context, arg CreateRepositoryPara
 }
 
 const createUser = `-- name: CreateUser :execresult
-INSERT INTO users (username, refresh_token) VALUES (?, ?)
+INSERT INTO users (username, github_token, last_synced_at) VALUES (?, ?, ?)
 `
 
 type CreateUserParams struct {
 	Username     string
-	RefreshToken string
+	GithubToken  GitHubToken
+	LastSyncedAt time.Time
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (sql.Result, error) {
-	return q.db.ExecContext(ctx, createUser, arg.Username, arg.RefreshToken)
+	return q.db.ExecContext(ctx, createUser, arg.Username, arg.GithubToken, arg.LastSyncedAt)
 }
 
 const deleteLastXReleases = `-- name: DeleteLastXReleases :execresult
@@ -189,14 +190,51 @@ func (q *Queries) GetRepositoryByName(ctx context.Context, name string) (Reposit
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, refresh_token FROM users WHERE username = ?
+SELECT id, username, github_token, last_synced_at FROM users WHERE username = ?
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
 	var i User
-	err := row.Scan(&i.ID, &i.Username, &i.RefreshToken)
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.GithubToken,
+		&i.LastSyncedAt,
+	)
 	return i, err
+}
+
+const getUsersInNeedOfAnUpdate = `-- name: GetUsersInNeedOfAnUpdate :many
+SELECT id, username, github_token, last_synced_at FROM users WHERE last_synced_at < ?
+`
+
+func (q *Queries) GetUsersInNeedOfAnUpdate(ctx context.Context, lastSyncedAt time.Time) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getUsersInNeedOfAnUpdate, lastSyncedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.GithubToken,
+			&i.LastSyncedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertRelease = `-- name: InsertRelease :exec
@@ -263,4 +301,32 @@ type UpdateRepositoryStarParams struct {
 
 func (q *Queries) UpdateRepositoryStar(ctx context.Context, arg UpdateRepositoryStarParams) (sql.Result, error) {
 	return q.db.ExecContext(ctx, updateRepositoryStar, arg.UpdatedAt, arg.RepositoryID, arg.UserID)
+}
+
+const updateUserSyncedAt = `-- name: UpdateUserSyncedAt :exec
+UPDATE users SET last_synced_at = ? WHERE id = ?
+`
+
+type UpdateUserSyncedAtParams struct {
+	LastSyncedAt time.Time
+	ID           int32
+}
+
+func (q *Queries) UpdateUserSyncedAt(ctx context.Context, arg UpdateUserSyncedAtParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserSyncedAt, arg.LastSyncedAt, arg.ID)
+	return err
+}
+
+const updateUserToken = `-- name: UpdateUserToken :exec
+UPDATE users SET github_token = ? WHERE id = ?
+`
+
+type UpdateUserTokenParams struct {
+	GithubToken GitHubToken
+	ID          int32
+}
+
+func (q *Queries) UpdateUserToken(ctx context.Context, arg UpdateUserTokenParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserToken, arg.GithubToken, arg.ID)
+	return err
 }

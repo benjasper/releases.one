@@ -1,7 +1,8 @@
 CREATE TABLE `users` (
 	`id` INT NOT NULL AUTO_INCREMENT,
 	`username` VARCHAR(255) NOT NULL,
-	`refresh_token` VARCHAR(255) NOT NULL,
+	`github_token` JSON NOT NULL,
+	`last_synced_at` DATETIME NOT NULL,
 	PRIMARY KEY (`id`),
 	UNIQUE INDEX `username` (`username`)
 );

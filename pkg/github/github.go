@@ -46,7 +46,7 @@ func (s *GitHubService) GetStarredRepos(ctx context.Context) iter.Seq2[*Reposito
 
 			resp, err := s.client.Do(req)
 			if err != nil {
-				yield(nil, err)
+				yield(nil, errors.Join(err, fmt.Errorf("failed to make starred repositories request to GitHub")))
 				return
 			}
 			defer resp.Body.Close()

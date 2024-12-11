@@ -42,5 +42,6 @@ type RepositoryStar struct {
 type User struct {
 	ID           int32
 	Username     string
-	RefreshToken string
+	GithubToken  GitHubToken
+	LastSyncedAt time.Time
 }

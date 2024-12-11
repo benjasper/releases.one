@@ -12,6 +12,7 @@ import (
 
 	"github.com/benjasper/releases.one/pkg/github"
 	"github.com/benjasper/releases.one/pkg/repository"
+	"github.com/go-co-op/gocron/v2"
 	"github.com/gorilla/feeds"
 	"golang.org/x/oauth2"
 )
@@ -35,6 +36,28 @@ func (s *Server) Start() {
 	mux.HandleFunc("/login/github", s.GetLoginWithGithub)
 	mux.HandleFunc("/github", s.GetLoginWithGithubCallback)
 	mux.HandleFunc("/feed/{username}", s.GetFeed)
+
+	scheduler, err := gocron.NewScheduler()
+	_, err = scheduler.NewJob(gocron.DurationJob(time.Minute), gocron.NewTask(func(s *Server) {
+		users, err := s.repository.GetUsersInNeedOfAnUpdate(context.Background(), time.Now().Add(time.Minute * -1))
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Found %d user(s) in need of an update\n", len(users))
+
+		for _, user := range users {
+			log.Printf("Syncing user: %s", user.Username)
+			err = s.syncUser(context.Background(), (*oauth2.Token)(&user.GithubToken), &user)
+			if err != nil {
+				log.Printf("Failed to sync user: %s", err.Error())
+			}
+		}
+
+	}, s))
+	if err != nil {
+		log.Fatal(err)
+	}
+	scheduler.Start()
 
 	log.Println("Starting server on port 80")
 	http.ListenAndServe(":80", mux)
@@ -69,8 +92,9 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		log.Println("No user found, creating new user")
 		_, err = s.repository.CreateUser(r.Context(), repository.CreateUserParams{
-			Username:     githubUser.Login,
-			RefreshToken: token.RefreshToken,
+			Username:    githubUser.Login,
+			GithubToken: repository.GitHubToken(*token),
+			LastSyncedAt: time.Now(),
 		})
 		if err != nil {
 			http.Error(w, "Failed to create user: "+err.Error(), http.StatusInternalServerError)
@@ -85,6 +109,13 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 	} else if err != nil {
 		http.Error(w, "Failed to retrieve user: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if err == nil {
+		err = s.repository.UpdateUserToken(r.Context(), repository.UpdateUserTokenParams{
+			ID:          user.ID,
+			GithubToken: repository.GitHubToken(*token),
+		})
 	}
 
 	log.Printf("Syncing user: %s", user.Username)
@@ -194,6 +225,11 @@ func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *reposi
 
 	s.repository.DeleteRepositoryStarsUpdatedBefore(ctx, repository.DeleteRepositoryStarsUpdatedBeforeParams{
 		UpdatedAt: syncStartedAt,
+	})
+
+	s.repository.UpdateUserSyncedAt(ctx, repository.UpdateUserSyncedAtParams{
+		ID:           user.ID,
+		LastSyncedAt: time.Now(),
 	})
 
 	return nil

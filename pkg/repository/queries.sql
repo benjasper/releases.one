@@ -2,7 +2,16 @@
 SELECT * FROM users WHERE username = ?;
 
 -- name: CreateUser :execresult
-INSERT INTO users (username, refresh_token) VALUES (?, ?);
+INSERT INTO users (username, github_token, last_synced_at) VALUES (?, ?, ?);
+
+-- name: UpdateUserToken :exec
+UPDATE users SET github_token = ? WHERE id = ?;
+
+-- name: UpdateUserSyncedAt :exec
+UPDATE users SET last_synced_at = ? WHERE id = ?;
+
+-- name: GetUsersInNeedOfAnUpdate :many
+SELECT * FROM users WHERE last_synced_at < ?;
 
 -- name: GetRepositoryByName :one
 SELECT * FROM repositories WHERE name = ?;
