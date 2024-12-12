@@ -288,7 +288,7 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	feed := &feeds.Feed{
-		Title:       "GitHub releases of my starred repositories",
+		Title:       "GitHub Releases",
 		Link:        &feeds.Link{Href: "https://releases.one"},
 		Description: "A list of all the releases for all of your starred GitHub repositories",
 		Author:      &feeds.Author{Name: "Benjamin Jasper"},
@@ -297,7 +297,7 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 
 	for _, release := range releases {
 		feedItem := &feeds.Item{
-			Title:       fmt.Sprintf("%s %s", release.RepositoryName.String, release.Name),
+			Title:       fmt.Sprintf("%s: %s", release.RepositoryName.String, release.Name),
 			Link:        &feeds.Link{Href: release.Url},
 			Description: release.Description,
 			Created:     release.ReleasedAt,
