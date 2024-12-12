@@ -52,17 +52,17 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (sql.Res
 	return q.db.ExecContext(ctx, createUser, arg.Username, arg.GithubToken, arg.LastSyncedAt)
 }
 
-const deleteLastXReleases = `-- name: DeleteLastXReleases :execresult
-DELETE FROM releases WHERE id IN (SELECT id FROM releases AS r WHERE r.repository_id = ? ORDER BY r.released_at DESC LIMIT ?)
+const deleteReleasesOlderThan = `-- name: DeleteReleasesOlderThan :execresult
+DELETE FROM releases WHERE released_at < ? AND repository_id = ? ORDER BY released_at DESC
 `
 
-type DeleteLastXReleasesParams struct {
+type DeleteReleasesOlderThanParams struct {
+	ReleasedAt   time.Time
 	RepositoryID int32
-	Limit        int32
 }
 
-func (q *Queries) DeleteLastXReleases(ctx context.Context, arg DeleteLastXReleasesParams) (sql.Result, error) {
-	return q.db.ExecContext(ctx, deleteLastXReleases, arg.RepositoryID, arg.Limit)
+func (q *Queries) DeleteReleasesOlderThan(ctx context.Context, arg DeleteReleasesOlderThanParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, deleteReleasesOlderThan, arg.ReleasedAt, arg.RepositoryID)
 }
 
 const deleteRepositoryStarsUpdatedBefore = `-- name: DeleteRepositoryStarsUpdatedBefore :execresult

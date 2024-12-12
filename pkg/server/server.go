@@ -38,8 +38,8 @@ func (s *Server) Start() {
 	mux.HandleFunc("/feed/{username}", s.GetFeed)
 
 	scheduler, err := gocron.NewScheduler()
-	_, err = scheduler.NewJob(gocron.DurationJob(time.Minute), gocron.NewTask(func(s *Server) {
-		users, err := s.repository.GetUsersInNeedOfAnUpdate(context.Background(), time.Now().Add(time.Hour * -12))
+	_, err = scheduler.NewJob(gocron.DurationJob(time.Minute*30), gocron.NewTask(func(s *Server) {
+		users, err := s.repository.GetUsersInNeedOfAnUpdate(context.Background(), time.Now().Add(time.Hour*-8))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -92,8 +92,8 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		log.Println("No user found, creating new user")
 		_, err = s.repository.CreateUser(r.Context(), repository.CreateUserParams{
-			Username:    githubUser.Login,
-			GithubToken: repository.GitHubToken(*token),
+			Username:     githubUser.Login,
+			GithubToken:  repository.GitHubToken(*token),
 			LastSyncedAt: time.Now(),
 		})
 		if err != nil {
@@ -118,18 +118,19 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 		})
 	}
 
-	log.Printf("Syncing user: %s", user.Username)
-	log.Printf("Token: %s", token.AccessToken)
-
 	err = s.syncUser(r.Context(), token, &user)
 	if err != nil {
 		log.Printf("Failed to sync user: %s", err.Error())
 		http.Error(w, "Failed to sync user: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *repository.User) error {
+	log.Printf("Syncing user: %s", user.Username)
+
 	client := s.githubOAuthConfig.Client(ctx, token)
 
 	syncStartedAt := time.Now()
@@ -203,7 +204,7 @@ func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *reposi
 			})
 
 			if !releaseExists {
-				log.Printf("Release not found, creating new release: %s", ghRelease.TagName)
+				log.Printf("Release not found, creating new release for user %s and repository %s: %s", user.Username, githubRepo.Name, ghRelease.TagName)
 				err = s.repository.InsertRelease(ctx, repository.InsertReleaseParams{
 					RepositoryID: githubRepo.ID,
 					Name:         ghRelease.Name,
@@ -222,20 +223,50 @@ func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *reposi
 			}
 		}
 
-		s.repository.DeleteLastXReleases(ctx, repository.DeleteLastXReleasesParams{
-			Limit:        10,
-			RepositoryID: githubRepo.ID,
-		})
+		// Find the date of the 10th most recent release
+		var oldestRelease *repository.Release
+		if len(releases) > 10 {
+			oldestRelease = &releases[len(releases)-10]
+
+			result, err = s.repository.DeleteReleasesOlderThan(ctx, repository.DeleteReleasesOlderThanParams{
+				ReleasedAt:   oldestRelease.ReleasedAt,
+				RepositoryID: githubRepo.ID,
+			})
+			if err != nil {
+				return err
+			}
+
+			rowsAffected, err := result.RowsAffected()
+			if err != nil {
+				return err
+			}
+			log.Printf("Deleted %d releases older than %s for repository: %s", rowsAffected, oldestRelease.ReleasedAt.String(), repo.NameWithOwner)
+		}
+
 	}
 
-	s.repository.DeleteRepositoryStarsUpdatedBefore(ctx, repository.DeleteRepositoryStarsUpdatedBeforeParams{
+	result, err := s.repository.DeleteRepositoryStarsUpdatedBefore(ctx, repository.DeleteRepositoryStarsUpdatedBeforeParams{
 		UpdatedAt: syncStartedAt,
 	})
+	if err != nil {
+		return err
+	}
 
-	s.repository.UpdateUserSyncedAt(ctx, repository.UpdateUserSyncedAtParams{
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	log.Printf("Deleted %d repository stars for user: %s", rowsAffected, user.Username)
+
+	err = s.repository.UpdateUserSyncedAt(ctx, repository.UpdateUserSyncedAtParams{
 		ID:           user.ID,
-		LastSyncedAt: time.Now(),
+		LastSyncedAt: syncStartedAt,
 	})
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Synced user: %s", user.Username)
 
 	return nil
 }
@@ -257,7 +288,7 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	feed := &feeds.Feed{
-		Title:       "My GitHub Releases",
+		Title:       "GitHub releases of my starred repositories",
 		Link:        &feeds.Link{Href: "https://releases.one"},
 		Description: "A list of all the releases for all of your starred GitHub repositories",
 		Author:      &feeds.Author{Name: "Benjamin Jasper"},
