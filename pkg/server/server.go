@@ -296,11 +296,16 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, release := range releases {
+		imageMarkup := ""
+		if release.ImageUrl.Valid {
+			imageMarkup = fmt.Sprintf("<img src=\"%s\" />", release.ImageUrl.String)
+		}
+
 		feedItem := &feeds.Item{
-			Title:       fmt.Sprintf("%s: %s", release.RepositoryName.String, release.Name),
-			Link:        &feeds.Link{Href: release.Url},
-			Description: release.Description,
-			Created:     release.ReleasedAt,
+			Title:   fmt.Sprintf("%s: %s", release.RepositoryName.String, release.Name),
+			Link:    &feeds.Link{Href: release.Url},
+			Content: fmt.Sprintf("%s%s", imageMarkup, release.Description),
+			Created: release.ReleasedAt,
 		}
 
 		if release.Author.Valid {
