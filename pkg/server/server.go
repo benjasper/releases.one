@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/benjasper/releases.one/pkg/github"
@@ -364,15 +365,13 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 			Link:    &feeds.Link{Href: release.Url},
 			Content: release.Description,
 			Created: release.ReleasedAt,
-			Enclosure: &feeds.Enclosure{
-				Url: release.ImageUrl.String,
-			},
 		}
 
 		if release.ImageUrl.Valid {
 			feedItem.Enclosure = &feeds.Enclosure{
-				Url:  release.ImageUrl.String,
-				Type: "image/png",
+				Url:    release.ImageUrl.String,
+				Type:   "image/png",
+				Length: strconv.Itoa(int(release.ImageSize.Int32)),
 			}
 		}
 
@@ -380,10 +379,10 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 			feedItem.Author = &feeds.Author{Name: release.Author.String}
 		}
 
-		feed.Items = append(feed.Items, feedItem)
+		feed.Add(feedItem)
 	}
 
-	atom, err := feed.ToRss()
+	atom, err := feed.ToAtom()
 	if err != nil {
 		http.Error(w, "Failed to convert feed to atom: "+err.Error(), http.StatusInternalServerError)
 		return

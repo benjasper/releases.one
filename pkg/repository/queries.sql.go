@@ -120,7 +120,11 @@ func (q *Queries) GetReleases(ctx context.Context, repositoryID int32) ([]Releas
 }
 
 const getReleasesForUser = `-- name: GetReleasesForUser :many
-SELECT releases.id, releases.repository_id, releases.name, releases.url, releases.tag_name, releases.description, releases.author, releases.is_prerelease, releases.released_at, releases.created_at, releases.updated_at, ` + "`" + `repositories` + "`" + `.` + "`" + `name` + "`" + ` AS repository_name, ` + "`" + `repositories` + "`" + `.` + "`" + `image_url` + "`" + ` AS image_url FROM ` + "`" + `releases` + "`" + ` LEFT JOIN ` + "`" + `repositories` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repositories` + "`" + `.` + "`" + `id` + "`" + ` INNER JOIN ` + "`" + `repository_stars` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repository_stars` + "`" + `.` + "`" + `repository_id` + "`" + ` WHERE ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ? ORDER BY releases.released_at DESC
+SELECT releases.id, releases.repository_id, releases.name, releases.url, releases.tag_name, releases.description, releases.author, releases.is_prerelease, releases.released_at, releases.created_at, releases.updated_at, ` + "`" + `repositories` + "`" + `.` + "`" + `name` + "`" + ` AS repository_name, ` + "`" + `repositories` + "`" + `.` + "`" + `image_url` + "`" + ` AS image_url, ` + "`" + `repositories` + "`" + `.` + "`" + `image_size` + "`" + ` AS image_size
+	FROM ` + "`" + `releases` + "`" + ` 
+	LEFT JOIN ` + "`" + `repositories` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repositories` + "`" + `.` + "`" + `id` + "`" + ` 
+	INNER JOIN ` + "`" + `repository_stars` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repository_stars` + "`" + `.` + "`" + `repository_id` + "`" + ` 
+	WHERE ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ? ORDER BY releases.released_at DESC
 `
 
 type GetReleasesForUserRow struct {
@@ -137,6 +141,7 @@ type GetReleasesForUserRow struct {
 	UpdatedAt      time.Time
 	RepositoryName sql.NullString
 	ImageUrl       sql.NullString
+	ImageSize      sql.NullInt32
 }
 
 func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetReleasesForUserRow, error) {
@@ -162,6 +167,7 @@ func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetRe
 			&i.UpdatedAt,
 			&i.RepositoryName,
 			&i.ImageUrl,
+			&i.ImageSize,
 		); err != nil {
 			return nil, err
 		}

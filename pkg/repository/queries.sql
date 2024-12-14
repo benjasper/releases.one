@@ -38,4 +38,8 @@ INSERT INTO releases (repository_id, name, author, tag_name, url, description, r
 DELETE FROM releases WHERE released_at < ? AND repository_id = ? ORDER BY released_at DESC;
 
 -- name: GetReleasesForUser :many
-SELECT `releases`.*, `repositories`.`name` AS repository_name, `repositories`.`image_url` AS image_url FROM `releases` LEFT JOIN `repositories` ON `releases`.`repository_id` = `repositories`.`id` INNER JOIN `repository_stars` ON `releases`.`repository_id` = `repository_stars`.`repository_id` WHERE `repository_stars`.`user_id` = ? ORDER BY releases.released_at DESC;
+SELECT `releases`.*, `repositories`.`name` AS repository_name, `repositories`.`image_url` AS image_url, `repositories`.`image_size` AS image_size
+	FROM `releases` 
+	LEFT JOIN `repositories` ON `releases`.`repository_id` = `repositories`.`id` 
+	INNER JOIN `repository_stars` ON `releases`.`repository_id` = `repository_stars`.`repository_id` 
+	WHERE `repository_stars`.`user_id` = ? ORDER BY releases.released_at DESC;
