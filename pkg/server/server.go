@@ -19,6 +19,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type FeedType string
+var AtomFeedType FeedType = "application/atom+xml"
+var RssFeedType FeedType = "application/rss+xml"
+
 type Server struct {
 	repository        *repository.Queries
 	githubOAuthConfig *oauth2.Config
@@ -38,7 +42,12 @@ func (s *Server) Start() {
 	mux.HandleFunc("/login/github", s.GetLoginWithGithub)
 	mux.HandleFunc("/trigger/{username}", s.PostTriggerSync)
 	mux.HandleFunc("/github", s.GetLoginWithGithubCallback)
-	mux.HandleFunc("/feed/{username}", s.GetFeed)
+	mux.HandleFunc("/atom/{username}", func(w http.ResponseWriter, r *http.Request) {
+		s.GetFeed(w, r, AtomFeedType)
+	})
+	mux.HandleFunc("/rss/{username}", func(w http.ResponseWriter, r *http.Request) {
+		s.GetFeed(w, r, RssFeedType)
+	})
 
 	scheduler, err := gocron.NewScheduler()
 	_, err = scheduler.NewJob(gocron.DurationJob(time.Minute*30), gocron.NewTask(func(s *Server) {
@@ -335,7 +344,7 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 	return nil
 }
 
-func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedType) {
 	username := r.PathValue("username")
 
 	user, err := s.repository.GetUserByUsername(r.Context(), username)
@@ -382,8 +391,7 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var responseBody string
-	accept := r.Header.Get("Accept")
-	if accept == "application/rss+xml" {
+	if feedType == RssFeedType {
 		responseBody, err = feed.ToRss()
 		if err != nil {
 			http.Error(w, "Failed to convert feed to rss: "+err.Error(), http.StatusInternalServerError)
