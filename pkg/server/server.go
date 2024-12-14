@@ -355,7 +355,6 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 		Title:       "GitHub Releases",
 		Link:        &feeds.Link{Href: "https://releases.one"},
 		Description: "A list of all the releases for all of your starred GitHub repositories",
-		Author:      &feeds.Author{Name: "Benjamin Jasper"},
 		Updated:     user.LastSyncedAt,
 	}
 
