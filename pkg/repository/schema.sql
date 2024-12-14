@@ -16,6 +16,7 @@ CREATE TABLE `repositories` (
 	`updated_at` DATETIME NOT NULL,
 	`last_synced_at` DATETIME NOT NULL,
 	`image_url` VARCHAR(255) NOT NULL,
+	`image_size` INT NOT NULL,
 	PRIMARY KEY (`id`)
 );
 

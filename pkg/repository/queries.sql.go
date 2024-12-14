@@ -12,13 +12,14 @@ import (
 )
 
 const createRepository = `-- name: CreateRepository :exec
-INSERT INTO repositories (name, url, image_url, private, created_at, updated_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO repositories (name, url, image_url, image_size, private, created_at, updated_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateRepositoryParams struct {
 	Name         string
 	Url          string
 	ImageUrl     string
+	ImageSize    int32
 	Private      bool
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
@@ -30,6 +31,7 @@ func (q *Queries) CreateRepository(ctx context.Context, arg CreateRepositoryPara
 		arg.Name,
 		arg.Url,
 		arg.ImageUrl,
+		arg.ImageSize,
 		arg.Private,
 		arg.CreatedAt,
 		arg.UpdatedAt,
@@ -175,7 +177,7 @@ func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetRe
 }
 
 const getRepositoryByName = `-- name: GetRepositoryByName :one
-SELECT id, name, url, private, created_at, updated_at, last_synced_at, image_url FROM repositories WHERE name = ?
+SELECT id, name, url, private, created_at, updated_at, last_synced_at, image_url, image_size FROM repositories WHERE name = ?
 `
 
 func (q *Queries) GetRepositoryByName(ctx context.Context, name string) (Repository, error) {
@@ -190,6 +192,7 @@ func (q *Queries) GetRepositoryByName(ctx context.Context, name string) (Reposit
 		&i.UpdatedAt,
 		&i.LastSyncedAt,
 		&i.ImageUrl,
+		&i.ImageSize,
 	)
 	return i, err
 }

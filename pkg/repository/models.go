@@ -32,6 +32,7 @@ type Repository struct {
 	UpdatedAt    time.Time
 	LastSyncedAt time.Time
 	ImageUrl     string
+	ImageSize    int32
 }
 
 type RepositoryStar struct {

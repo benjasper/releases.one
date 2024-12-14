@@ -9,6 +9,7 @@ import (
 	"iter"
 	"log"
 	"net/http"
+	"strconv"
 
 	"golang.org/x/oauth2"
 )
@@ -118,4 +119,28 @@ func (s *GitHubService) GetUserData(ctx context.Context) (*UserData, error) {
 	}
 
 	return &userData, nil
+}
+
+func (s *GitHubService) GetImageSize(ctx context.Context, url string) (int, error) {
+	resp, err := s.client.Head(url)
+	if err != nil {
+		return 0, errors.Join(err, errors.New("failed to fetch image"))
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, errors.New("unexpected response from GitHub")
+	}
+
+	contentLengthHeader := resp.Header.Get("Content-Length")
+	if contentLengthHeader == "" {
+		return 0, errors.New("failed to fetch image size")
+	}
+
+	size, err := strconv.Atoi(contentLengthHeader)
+	if err != nil {
+		return 0, err
+	}
+
+	return size, nil
 }

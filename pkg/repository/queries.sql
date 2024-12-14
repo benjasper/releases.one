@@ -17,7 +17,7 @@ SELECT * FROM users WHERE last_synced_at < ?;
 SELECT * FROM repositories WHERE name = ?;
 
 -- name: CreateRepository :exec
-INSERT INTO repositories (name, url, image_url, private, created_at, updated_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO repositories (name, url, image_url, image_size, private, created_at, updated_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: InsertRepositoryStar :exec
 INSERT INTO repository_stars (repository_id, user_id, created_at, updated_at) VALUES (?, ?, ?, ?);

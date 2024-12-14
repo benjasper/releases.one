@@ -15,6 +15,7 @@ import (
 	"github.com/go-co-op/gocron/v2"
 	"github.com/gorilla/feeds"
 	"golang.org/x/oauth2"
+	"golang.org/x/sync/errgroup"
 )
 
 type Server struct {
@@ -34,7 +35,7 @@ func (s *Server) Start() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/login/github", s.GetLoginWithGithub)
-	// mux.HandleFunc("/trigger/{username}", s.PostTriggerSync)
+	mux.HandleFunc("/trigger/{username}", s.PostTriggerSync)
 	mux.HandleFunc("/github", s.GetLoginWithGithubCallback)
 	mux.HandleFunc("/feed/{username}", s.GetFeed)
 
@@ -48,7 +49,8 @@ func (s *Server) Start() {
 
 		for _, user := range users {
 			log.Printf("Syncing user: %s", user.Username)
-			err = s.syncUser(context.Background(), (*oauth2.Token)(&user.GithubToken), &user)
+			ctx, _ := context.WithTimeoutCause(context.Background(), time.Minute*5, errors.New("syncing user took too long"))
+			err = s.syncUser(ctx, &user)
 			if err != nil {
 				log.Printf("Failed to sync user: %s", err.Error())
 			}
@@ -125,7 +127,7 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 		})
 	}
 
-	err = s.syncUser(r.Context(), token, &user)
+	err = s.syncUser(r.Context(), &user)
 	if err != nil {
 		log.Printf("Failed to sync user: %s", err.Error())
 		http.Error(w, "Failed to sync user: "+err.Error(), http.StatusInternalServerError)
@@ -148,7 +150,7 @@ func (s *Server) PostTriggerSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = s.syncUser(r.Context(), (*oauth2.Token)(&user.GithubToken), &user)
+	err = s.syncUser(context.Background(), &user)
 	if err != nil {
 		log.Printf("Failed to sync user: %s", err.Error())
 		http.Error(w, "Failed to sync user: "+err.Error(), http.StatusInternalServerError)
@@ -156,12 +158,12 @@ func (s *Server) PostTriggerSync(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *repository.User) error {
+func (s *Server) syncUser(ctx context.Context, user *repository.User) error {
 	log.Printf("Syncing user: %s", user.Username)
 
 	syncStartedAt := time.Now()
 
-	githubService, newToken, err := github.NewGitHubService(ctx, s.githubOAuthConfig, token)
+	githubService, newToken, err := github.NewGitHubService(ctx, s.githubOAuthConfig, (*oauth2.Token)(&user.GithubToken))
 	if err != nil {
 		return err
 	}
@@ -173,112 +175,9 @@ func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *reposi
 		})
 	}
 
-	for repo, err := range githubService.GetStarredRepos(ctx) {
-		if err != nil {
-			return err
-		}
-
-		if repo.IsPrivate {
-			continue
-		}
-
-		githubRepo, err := s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
-		if err != nil && errors.Is(err, sql.ErrNoRows) {
-			log.Printf("No repository found, creating new repository: %s", repo.NameWithOwner)
-
-			err = s.repository.CreateRepository(ctx, repository.CreateRepositoryParams{
-				Name:         repo.NameWithOwner,
-				Url:          repo.URL,
-				ImageUrl:     repo.OpenGraphImageURL,
-				Private:      repo.IsPrivate,
-				CreatedAt:    time.Now(),
-				UpdatedAt:    time.Now(),
-				LastSyncedAt: time.Now(),
-			})
-			if err != nil {
-				return err
-			}
-
-			githubRepo, err = s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Now check if the repository has already been starred by the user
-		result, err := s.repository.UpdateRepositoryStar(ctx, repository.UpdateRepositoryStarParams{
-			UpdatedAt:    time.Now(),
-			RepositoryID: githubRepo.ID,
-			UserID:       user.ID,
-		})
-		starRowsAffected, err := result.RowsAffected()
-		if err != nil {
-			return err
-		}
-
-		if starRowsAffected == 0 {
-			log.Printf("No repository star found, creating new repository star: %s", repo.NameWithOwner)
-			err = s.repository.InsertRepositoryStar(ctx, repository.InsertRepositoryStarParams{
-				RepositoryID: githubRepo.ID,
-				UserID:       user.ID,
-				CreatedAt:    time.Now(),
-				UpdatedAt:    time.Now(),
-			})
-			if err != nil {
-				return err
-			}
-		}
-
-		releases, err := s.repository.GetReleases(ctx, githubRepo.ID)
-		if err != nil {
-			return err
-		}
-
-		for _, ghRelease := range repo.Releases.Nodes {
-			releaseExists := slices.ContainsFunc(releases, func(release repository.Release) bool {
-				return release.TagName == ghRelease.TagName
-			})
-
-			if !releaseExists {
-				log.Printf("Release not found, creating new release for user %s and repository %s: %s", user.Username, githubRepo.Name, ghRelease.TagName)
-				err = s.repository.InsertRelease(ctx, repository.InsertReleaseParams{
-					RepositoryID: githubRepo.ID,
-					Name:         ghRelease.Name,
-					TagName:      ghRelease.TagName,
-					Url:          ghRelease.URL,
-					Description:  ghRelease.DescriptionHTML,
-					Author:       sql.NullString{String: ghRelease.Author.Name, Valid: ghRelease.Author.Name != ""},
-					ReleasedAt:   ghRelease.PublishedAt,
-					IsPrerelease: ghRelease.IsPrerelease,
-					CreatedAt:    time.Now(),
-					UpdatedAt:    time.Now(),
-				})
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		// Find the date of the 10th most recent release
-		var oldestRelease *repository.Release
-		if len(releases) > 10 {
-			oldestRelease = &releases[len(releases)-10]
-
-			result, err = s.repository.DeleteReleasesOlderThan(ctx, repository.DeleteReleasesOlderThanParams{
-				ReleasedAt:   oldestRelease.ReleasedAt,
-				RepositoryID: githubRepo.ID,
-			})
-			if err != nil {
-				return err
-			}
-
-			rowsAffected, err := result.RowsAffected()
-			if err != nil {
-				return err
-			}
-			log.Printf("Deleted %d releases older than %s for repository: %s", rowsAffected, oldestRelease.ReleasedAt.String(), repo.NameWithOwner)
-		}
-
+	err = s.syncRepositoriesAndReleases(ctx, user, githubService)
+	if err != nil {
+		return err
 	}
 
 	result, err := s.repository.DeleteRepositoryStarsUpdatedBefore(ctx, repository.DeleteRepositoryStarsUpdatedBeforeParams{
@@ -307,6 +206,134 @@ func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *reposi
 	return nil
 }
 
+func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *repository.User, githubService *github.GitHubService) error {
+	group, ctx := errgroup.WithContext(ctx)
+
+	for repo, err := range githubService.GetStarredRepos(ctx) {
+		if err != nil {
+			return err
+		}
+		group.Go(func() error {
+			// Ignore private repositories for now
+			if repo.IsPrivate {
+				return nil
+			}
+
+			githubRepo, err := s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
+			if err != nil && errors.Is(err, sql.ErrNoRows) {
+				log.Printf("No repository found, creating new repository: %s", repo.NameWithOwner)
+
+				openGraphImageSize, err := githubService.GetImageSize(ctx, repo.OpenGraphImageURL)
+				if err != nil {
+					return err
+				}
+
+				err = s.repository.CreateRepository(ctx, repository.CreateRepositoryParams{
+					Name:         repo.NameWithOwner,
+					Url:          repo.URL,
+					ImageUrl:     repo.OpenGraphImageURL,
+					ImageSize:    int32(openGraphImageSize),
+					Private:      repo.IsPrivate,
+					CreatedAt:    time.Now(),
+					UpdatedAt:    time.Now(),
+					LastSyncedAt: time.Now(),
+				})
+				if err != nil {
+					return err
+				}
+
+				githubRepo, err = s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Now check if the repository has already been starred by the user
+			result, err := s.repository.UpdateRepositoryStar(ctx, repository.UpdateRepositoryStarParams{
+				UpdatedAt:    time.Now(),
+				RepositoryID: githubRepo.ID,
+				UserID:       user.ID,
+			})
+			starRowsAffected, err := result.RowsAffected()
+			if err != nil {
+				return err
+			}
+
+			if starRowsAffected == 0 {
+				log.Printf("No repository star found, creating new repository star: %s", repo.NameWithOwner)
+				err = s.repository.InsertRepositoryStar(ctx, repository.InsertRepositoryStarParams{
+					RepositoryID: githubRepo.ID,
+					UserID:       user.ID,
+					CreatedAt:    time.Now(),
+					UpdatedAt:    time.Now(),
+				})
+				if err != nil {
+					return err
+				}
+			}
+
+			releases, err := s.repository.GetReleases(ctx, githubRepo.ID)
+			if err != nil {
+				return err
+			}
+
+			for _, ghRelease := range repo.Releases.Nodes {
+				releaseExists := slices.ContainsFunc(releases, func(release repository.Release) bool {
+					return release.TagName == ghRelease.TagName
+				})
+
+				if !releaseExists {
+					log.Printf("Release not found, creating new release for user %s and repository %s: %s", user.Username, githubRepo.Name, ghRelease.TagName)
+					err = s.repository.InsertRelease(ctx, repository.InsertReleaseParams{
+						RepositoryID: githubRepo.ID,
+						Name:         ghRelease.Name,
+						TagName:      ghRelease.TagName,
+						Url:          ghRelease.URL,
+						Description:  ghRelease.DescriptionHTML,
+						Author:       sql.NullString{String: ghRelease.Author.Name, Valid: ghRelease.Author.Name != ""},
+						ReleasedAt:   ghRelease.PublishedAt,
+						IsPrerelease: ghRelease.IsPrerelease,
+						CreatedAt:    time.Now(),
+						UpdatedAt:    time.Now(),
+					})
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+			// Find the date of the 10th most recent release
+			var oldestRelease *repository.Release
+			if len(releases) > 10 {
+				oldestRelease = &releases[len(releases)-10]
+
+				result, err = s.repository.DeleteReleasesOlderThan(ctx, repository.DeleteReleasesOlderThanParams{
+					ReleasedAt:   oldestRelease.ReleasedAt,
+					RepositoryID: githubRepo.ID,
+				})
+				if err != nil {
+					return err
+				}
+
+				rowsAffected, err := result.RowsAffected()
+				if err != nil {
+					return err
+				}
+				log.Printf("Deleted %d releases older than %s for repository: %s", rowsAffected, oldestRelease.ReleasedAt.String(), repo.NameWithOwner)
+			}
+
+			return nil
+		})
+	}
+
+	err := group.Wait()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
 
@@ -328,7 +355,7 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 		Link:        &feeds.Link{Href: "https://releases.one"},
 		Description: "A list of all the releases for all of your starred GitHub repositories",
 		Author:      &feeds.Author{Name: "Benjamin Jasper"},
-		Created:     time.Now(),
+		Updated:     user.LastSyncedAt,
 	}
 
 	for _, release := range releases {
@@ -344,7 +371,7 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 
 		if release.ImageUrl.Valid {
 			feedItem.Enclosure = &feeds.Enclosure{
-				Url: release.ImageUrl.String,
+				Url:  release.ImageUrl.String,
 				Type: "image/png",
 			}
 		}
@@ -356,7 +383,7 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 		feed.Items = append(feed.Items, feedItem)
 	}
 
-	atom, err := feed.ToAtom()
+	atom, err := feed.ToRss()
 	if err != nil {
 		http.Error(w, "Failed to convert feed to atom: "+err.Error(), http.StatusInternalServerError)
 		return
