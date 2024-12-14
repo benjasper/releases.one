@@ -381,12 +381,25 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request) {
 		feed.Add(feedItem)
 	}
 
-	atom, err := feed.ToAtom()
-	if err != nil {
-		http.Error(w, "Failed to convert feed to atom: "+err.Error(), http.StatusInternalServerError)
-		return
+	var responseBody string
+	accept := r.Header.Get("Accept")
+	if accept == "application/rss+xml" {
+		responseBody, err = feed.ToRss()
+		if err != nil {
+			http.Error(w, "Failed to convert feed to rss: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/rss+xml")
+	} else {
+		responseBody, err = feed.ToAtom()
+		if err != nil {
+			http.Error(w, "Failed to convert feed to atom: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/atom+xml")
 	}
 
-	w.Header().Set("Content-Type", "application/atom+xml")
-	w.Write([]byte(atom))
+	w.Write([]byte(responseBody))
 }
