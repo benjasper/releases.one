@@ -9,16 +9,34 @@ import (
 	"iter"
 	"log"
 	"net/http"
+
+	"golang.org/x/oauth2"
 )
 
 type GitHubService struct {
-	client *http.Client
+	client            *http.Client
+	githubOAuthConfig *oauth2.Config
 }
 
-func NewGitHubService(client *http.Client) *GitHubService {
-	return &GitHubService{
-		client: client,
+// NewGitHubService creates a new GitHubService, uses an existing token and refreshes it if necessary and returns the new token in case it was refreshed
+func NewGitHubService(ctx context.Context, oauthConfig *oauth2.Config, token *oauth2.Token) (*GitHubService, *oauth2.Token, error) {
+	tokenSource := oauthConfig.TokenSource(ctx, token)
+	newToken, err := tokenSource.Token()
+	if err != nil {
+		return nil, nil, err
 	}
+
+	var refreshedToken *oauth2.Token
+	if token.AccessToken != newToken.AccessToken || token.RefreshToken != newToken.RefreshToken {
+		refreshedToken = newToken
+		return nil, nil, errors.New("failed to refresh token")
+	}
+
+	client := oauthConfig.Client(ctx, newToken)
+	return &GitHubService{
+		client:            client,
+		githubOAuthConfig: oauthConfig,
+	}, refreshedToken, nil
 }
 
 var pageSize = 50

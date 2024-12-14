@@ -34,6 +34,7 @@ func (s *Server) Start() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/login/github", s.GetLoginWithGithub)
+	// mux.HandleFunc("/trigger/{username}", s.PostTriggerSync)
 	mux.HandleFunc("/github", s.GetLoginWithGithubCallback)
 	mux.HandleFunc("/feed/{username}", s.GetFeed)
 
@@ -78,9 +79,15 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	client := s.githubOAuthConfig.Client(r.Context(), token)
+	githubService, newToken, err := github.NewGitHubService(r.Context(), s.githubOAuthConfig, token)
+	if err != nil {
+		log.Printf("problem with token: %s", err)
+		http.Error(w, "Problem with token", http.StatusInternalServerError)
+	}
 
-	githubService := github.NewGitHubService(client)
+	if newToken != nil {
+		log.Fatalf("this should not happen, because the token we receive should be new")
+	}
 
 	githubUser, err := githubService.GetUserData(r.Context())
 	if err != nil {
@@ -128,14 +135,43 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusOK)
 }
 
+func (s *Server) PostTriggerSync(w http.ResponseWriter, r *http.Request) {
+	username := r.PathValue("username")
+	if username == "" {
+		http.Error(w, "Must provide username", http.StatusBadRequest)
+		return
+	}
+
+	user, err := s.repository.GetUserByUsername(r.Context(), username)
+	if err != nil {
+		http.Error(w, "Failed to retrieve user: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = s.syncUser(r.Context(), (*oauth2.Token)(&user.GithubToken), &user)
+	if err != nil {
+		log.Printf("Failed to sync user: %s", err.Error())
+		http.Error(w, "Failed to sync user: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (s *Server) syncUser(ctx context.Context, token *oauth2.Token, user *repository.User) error {
 	log.Printf("Syncing user: %s", user.Username)
 
-	client := s.githubOAuthConfig.Client(ctx, token)
-
 	syncStartedAt := time.Now()
 
-	githubService := github.NewGitHubService(client)
+	githubService, newToken, err := github.NewGitHubService(ctx, s.githubOAuthConfig, token)
+	if err != nil {
+		return err
+	}
+
+	if newToken != nil {
+		s.repository.UpdateUserToken(ctx, repository.UpdateUserTokenParams{
+			GithubToken: repository.GitHubToken(*newToken),
+			ID:          user.ID,
+		})
+	}
 
 	for repo, err := range githubService.GetStarredRepos(ctx) {
 		if err != nil {
