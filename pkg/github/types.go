@@ -35,6 +35,7 @@ query {
 			descriptionHTML
 			author {
 				name
+				login
 			}
           }
         }
@@ -88,6 +89,7 @@ type Repository struct {
 			DescriptionHTML string    `json:"descriptionHTML"`
 			Author          struct {
 				Name string `json:"name"`
+				Login string `json:"login"`
 			} `json:"author"`
 		} `json:"nodes"`
 	} `json:"releases"`

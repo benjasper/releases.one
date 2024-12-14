@@ -294,9 +294,14 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 
 				if !releaseExists {
 					log.Printf("Release not found, creating new release for user %s and repository %s: %s", user.Username, githubRepo.Name, ghRelease.TagName)
+					author := ghRelease.Author.Name
+					if author == "" {
+						author = ghRelease.Author.Login
+					}
+
 					err = s.repository.InsertRelease(ctx, repository.InsertReleaseParams{
 						RepositoryID: githubRepo.ID,
-						Name:         ghRelease.Name,
+						Name:         author,
 						TagName:      ghRelease.TagName,
 						Url:          ghRelease.URL,
 						Description:  ghRelease.DescriptionHTML,
