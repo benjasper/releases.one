@@ -30,7 +30,6 @@ func NewGitHubService(ctx context.Context, oauthConfig *oauth2.Config, token *oa
 	var refreshedToken *oauth2.Token
 	if token.AccessToken != newToken.AccessToken || token.RefreshToken != newToken.RefreshToken {
 		refreshedToken = newToken
-		return nil, nil, errors.New("failed to refresh token")
 	}
 
 	client := oauthConfig.Client(ctx, newToken)

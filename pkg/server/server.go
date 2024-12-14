@@ -70,7 +70,6 @@ func (s *Server) Start() {
 		slog.Info(fmt.Sprintf("Found %d user(s) in need of an update\n", len(users)))
 
 		for _, user := range users {
-			slog.Info(fmt.Sprintf("Syncing user: %s", user.Username))
 			ctx, _ := context.WithTimeoutCause(context.Background(), time.Minute*5, errors.New("syncing user took too long"))
 			err = s.syncUser(ctx, &user)
 			if err != nil {
@@ -191,10 +190,14 @@ func (s *Server) syncUser(ctx context.Context, user *repository.User) error {
 	}
 
 	if newToken != nil {
-		s.repository.UpdateUserToken(ctx, repository.UpdateUserTokenParams{
+		slog.Info(fmt.Sprintf("Saving refreshed token for user: %s", user.Username))
+		err = s.repository.UpdateUserToken(ctx, repository.UpdateUserTokenParams{
 			GithubToken: repository.GitHubToken(*newToken),
 			ID:          user.ID,
 		})
+		if err != nil {
+			return err
+		}
 	}
 
 	err = s.syncRepositoriesAndReleases(ctx, user, githubService)
