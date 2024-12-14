@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"slices"
@@ -66,14 +67,14 @@ func (s *Server) Start() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("Found %d user(s) in need of an update\n", len(users))
+		slog.Info(fmt.Sprintf("Found %d user(s) in need of an update\n", len(users)))
 
 		for _, user := range users {
-			log.Printf("Syncing user: %s", user.Username)
+			slog.Info(fmt.Sprintf("Syncing user: %s", user.Username))
 			ctx, _ := context.WithTimeoutCause(context.Background(), time.Minute*5, errors.New("syncing user took too long"))
 			err = s.syncUser(ctx, &user)
 			if err != nil {
-				log.Printf("Failed to sync user: %s", err.Error())
+				slog.Info(fmt.Sprintf("Failed to sync user: %s", err.Error()))
 			}
 		}
 
@@ -83,7 +84,7 @@ func (s *Server) Start() {
 	}
 	scheduler.Start()
 
-	log.Println("Starting server on port 80")
+	slog.Info("Starting server on port 80")
 	http.ListenAndServe(":80", mux)
 }
 
@@ -104,7 +105,7 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 
 	githubService, newToken, err := github.NewGitHubService(r.Context(), s.githubOAuthConfig, token)
 	if err != nil {
-		log.Printf("problem with token: %s", err)
+		slog.Error(fmt.Sprintf("problem with token: %s", err))
 		http.Error(w, "Problem with token", http.StatusInternalServerError)
 	}
 
@@ -120,7 +121,7 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 
 	user, err := s.repository.GetUserByUsername(r.Context(), githubUser.Login)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
-		log.Println("No user found, creating new user")
+		slog.Info("No user found, creating new user")
 		_, err = s.repository.CreateUser(r.Context(), repository.CreateUserParams{
 			Username:     githubUser.Login,
 			GithubToken:  repository.GitHubToken(*token),
@@ -150,7 +151,7 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 
 	err = s.syncUser(r.Context(), &user)
 	if err != nil {
-		log.Printf("Failed to sync user: %s", err.Error())
+		slog.Error(fmt.Sprintf("Failed to sync user: %s", err.Error()))
 		http.Error(w, "Failed to sync user: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -173,14 +174,14 @@ func (s *Server) PostTriggerSync(w http.ResponseWriter, r *http.Request) {
 
 	err = s.syncUser(context.Background(), &user)
 	if err != nil {
-		log.Printf("Failed to sync user: %s", err.Error())
+		slog.Error(fmt.Sprintf("Failed to sync user: %s", err.Error()))
 		http.Error(w, "Failed to sync user: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
 func (s *Server) syncUser(ctx context.Context, user *repository.User) error {
-	log.Printf("Syncing user: %s", user.Username)
+	slog.Info(fmt.Sprintf("Syncing user: %s", user.Username))
 
 	syncStartedAt := time.Now()
 
@@ -212,7 +213,7 @@ func (s *Server) syncUser(ctx context.Context, user *repository.User) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Deleted %d repository stars for user: %s", rowsAffected, user.Username)
+	slog.Info(fmt.Sprintf("Deleted %d repository stars for user: %s", rowsAffected, user.Username))
 
 	err = s.repository.UpdateUserSyncedAt(ctx, repository.UpdateUserSyncedAtParams{
 		ID:           user.ID,
@@ -222,7 +223,7 @@ func (s *Server) syncUser(ctx context.Context, user *repository.User) error {
 		return err
 	}
 
-	log.Printf("Synced user: %s", user.Username)
+	slog.Info(fmt.Sprintf("Synced user: %s", user.Username))
 
 	return nil
 }
@@ -242,7 +243,7 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 
 			githubRepo, err := s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
 			if err != nil && errors.Is(err, sql.ErrNoRows) {
-				log.Printf("No repository found, creating new repository: %s", repo.NameWithOwner)
+				slog.Info(fmt.Sprintf("No repository found, creating new repository: %s", repo.NameWithOwner))
 
 				openGraphImageSize, err := githubService.GetImageSize(ctx, repo.OpenGraphImageURL)
 				if err != nil {
@@ -281,7 +282,7 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 			}
 
 			if starRowsAffected == 0 {
-				log.Printf("No repository star found, creating new repository star: %s", repo.NameWithOwner)
+				slog.Info(fmt.Sprintf("No repository star found, creating new repository star: %s", repo.NameWithOwner))
 				err = s.repository.InsertRepositoryStar(ctx, repository.InsertRepositoryStarParams{
 					RepositoryID: githubRepo.ID,
 					UserID:       user.ID,
@@ -304,7 +305,7 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 				})
 
 				if !releaseExists {
-					log.Printf("Release not found, creating new release for user %s and repository %s: %s", user.Username, githubRepo.Name, ghRelease.TagName)
+					slog.Info(fmt.Sprintf("Release not found, creating new release for user %s and repository %s: %s", user.Username, githubRepo.Name, ghRelease.TagName))
 					author := ghRelease.Author.Name
 					if author == "" {
 						author = ghRelease.Author.Login
@@ -345,7 +346,7 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 				if err != nil {
 					return err
 				}
-				log.Printf("Deleted %d releases older than %s for repository: %s", rowsAffected, oldestRelease.ReleasedAt.String(), repo.NameWithOwner)
+				slog.Info(fmt.Sprintf("Deleted %d releases older than %s for repository: %s", rowsAffected, oldestRelease.ReleasedAt.String(), repo.NameWithOwner))
 			}
 
 			return nil

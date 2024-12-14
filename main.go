@@ -14,10 +14,8 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Printf("Error loading .env file: %s", err)
-	}
+	// We ignore the error because we don't want to crash the program if the .env file is missing
+	_ = godotenv.Load()
 
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
 	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
@@ -44,7 +42,4 @@ func main() {
 
 	server := server.NewServer(repository, oauthConfig)
 	server.Start()
-
-
-	println("Hello, world!")
 }

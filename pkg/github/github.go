@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -81,7 +81,7 @@ func (s *GitHubService) GetStarredRepos(ctx context.Context) iter.Seq2[*Reposito
 
 			if len(starredReposResponse.Errors) > 0 {
 				for _, err := range starredReposResponse.Errors {
-					log.Printf("Error: %s", err.Message)
+					slog.Info(fmt.Sprintf("Error: %s", err.Message))
 				}
 				yield(nil, errors.Join(errors.New("failed to fetch starred repos (graphql error)"), errors.New(starredReposResponse.Errors[0].Message)))
 				return
