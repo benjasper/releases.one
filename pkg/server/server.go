@@ -186,12 +186,6 @@ func (s *Server) syncUser(ctx context.Context, user *repository.User) error {
 
 	syncStartedAt := time.Now()
 
-	test, err := time.Parse(time.RFC3339, "-10-01T00:00:00Z")
-	if err != nil {
-		return err
-	}
-	slog.Info(fmt.Sprintf("test: %s", test.String()))
-
 	githubService, newToken, err := github.NewGitHubService(ctx, s.githubOAuthConfig, (*oauth2.Token)(&user.GithubToken))
 	if err != nil {
 		return err
