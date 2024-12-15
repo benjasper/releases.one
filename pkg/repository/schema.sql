@@ -17,6 +17,7 @@ CREATE TABLE `repositories` (
   `last_synced_at` DATETIME NOT NULL,
   `image_url` VARCHAR(255) NOT NULL,
   `image_size` INT NOT NULL,
+  `hash` BIGINT NOT NULL,
   PRIMARY KEY (`id`)
 );
 

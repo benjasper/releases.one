@@ -52,10 +52,25 @@ INSERT INTO
     private,
     created_at,
     updated_at,
-    last_synced_at
+    last_synced_at,
+	hash
   )
 VALUES
-  (?, ?, ?, ?, ?, ?, ?, ?);
+  (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: UpdateRepository :execresult
+UPDATE repositories
+SET
+  url = ?,
+  image_url = ?,
+  image_size = ?,
+  private = ?,
+  created_at = ?,
+  updated_at = ?,
+  last_synced_at = ?,
+  hash = ?
+WHERE
+  id = ?;
 
 -- name: InsertRepositoryStar :exec
 INSERT INTO

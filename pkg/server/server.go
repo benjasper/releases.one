@@ -17,6 +17,7 @@ import (
 	"github.com/benjasper/releases.one/pkg/repository"
 	"github.com/go-co-op/gocron/v2"
 	"github.com/gorilla/feeds"
+	"github.com/mitchellh/hashstructure/v2"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
 )
@@ -77,6 +78,7 @@ func (s *Server) Start() {
 			err = s.syncUser(ctx, &user)
 			if err != nil {
 				slog.Info(fmt.Sprintf("Failed to sync user: %s", err.Error()))
+				return
 			}
 		}
 	}, s))
@@ -236,9 +238,13 @@ func (s *Server) syncUser(ctx context.Context, user *repository.User) error {
 
 func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *repository.User, githubService *github.GitHubService) error {
 	group, ctx := errgroup.WithContext(ctx)
+	group.SetLimit(10)
 
 	for repo, err := range githubService.GetStarredRepos(ctx) {
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				slog.Error(fmt.Sprintf("Error syncing repositories (context canceled): %s", context.Cause(ctx)))
+			}
 			return err
 		}
 		group.Go(func() error {
@@ -246,6 +252,12 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 			if repo.IsPrivate {
 				return nil
 			}
+
+			hashUnsigned, err := hashstructure.Hash(repo, hashstructure.FormatV2, nil)
+			if err != nil {
+				return err
+			}
+			hash := int64(hashUnsigned)
 
 			githubRepo, err := s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
 			if err != nil && errors.Is(err, sql.ErrNoRows) {
@@ -265,6 +277,7 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 					CreatedAt:    time.Now(),
 					UpdatedAt:    time.Now(),
 					LastSyncedAt: time.Now(),
+					Hash:         hash,
 				})
 				if err != nil {
 					return err
@@ -274,6 +287,40 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 				if err != nil {
 					return err
 				}
+			} else if err != nil {
+				return err
+			} else {
+				// In case the image changed, refetch the image size
+				if repo.OpenGraphImageURL != githubRepo.ImageUrl {
+					openGraphImageSize, err := githubService.GetImageSize(ctx, repo.OpenGraphImageURL)
+					if err != nil {
+						return err
+					}
+
+					githubRepo.ImageUrl = repo.OpenGraphImageURL
+					githubRepo.ImageSize = int32(openGraphImageSize)
+					githubRepo.Hash = hash
+					githubRepo.UpdatedAt = time.Now()
+				}
+
+				// Check hash
+				if hash != githubRepo.Hash {
+					slog.Info(fmt.Sprintf("Repository hash changed, updating repository: %s", repo.NameWithOwner))
+					_, err = s.repository.UpdateRepository(ctx, repository.UpdateRepositoryParams{
+						ID:           githubRepo.ID,
+						Url:          githubRepo.Url,
+						ImageUrl:     githubRepo.ImageUrl,
+						ImageSize:    githubRepo.ImageSize,
+						Private:      githubRepo.Private,
+						CreatedAt:    githubRepo.CreatedAt,
+						UpdatedAt:    githubRepo.UpdatedAt,
+						LastSyncedAt: githubRepo.LastSyncedAt,
+						Hash:         githubRepo.Hash,
+					})
+					if err != nil {
+						return err
+					}
+				}
 			}
 
 			// Now check if the repository has already been starred by the user
@@ -282,12 +329,7 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 				RepositoryID: githubRepo.ID,
 				UserID:       user.ID,
 			})
-			starRowsAffected, err := result.RowsAffected()
-			if err != nil {
-				return err
-			}
-
-			if starRowsAffected == 0 {
+			if err != nil && errors.Is(err, sql.ErrNoRows) {
 				slog.Info(fmt.Sprintf("No repository star found, creating new repository star: %s", repo.NameWithOwner))
 				err = s.repository.InsertRepositoryStar(ctx, repository.InsertRepositoryStarParams{
 					RepositoryID: githubRepo.ID,
@@ -298,6 +340,8 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 				if err != nil {
 					return err
 				}
+			} else if err != nil {
+				return err
 			}
 
 			releases, err := s.repository.GetReleases(ctx, githubRepo.ID)
@@ -361,6 +405,10 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 
 	err := group.Wait()
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			slog.Error(fmt.Sprintf("Error syncing repositories (context canceled): %s", context.Cause(ctx)))
+		}
+
 		return err
 	}
 

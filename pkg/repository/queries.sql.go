@@ -21,10 +21,11 @@ INSERT INTO
     private,
     created_at,
     updated_at,
-    last_synced_at
+    last_synced_at,
+	hash
   )
 VALUES
-  (?, ?, ?, ?, ?, ?, ?, ?)
+  (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateRepositoryParams struct {
@@ -36,6 +37,7 @@ type CreateRepositoryParams struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	LastSyncedAt time.Time
+	Hash         int64
 }
 
 func (q *Queries) CreateRepository(ctx context.Context, arg CreateRepositoryParams) error {
@@ -48,6 +50,7 @@ func (q *Queries) CreateRepository(ctx context.Context, arg CreateRepositoryPara
 		arg.CreatedAt,
 		arg.UpdatedAt,
 		arg.LastSyncedAt,
+		arg.Hash,
 	)
 	return err
 }
@@ -222,7 +225,7 @@ func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetRe
 
 const getRepositoryByName = `-- name: GetRepositoryByName :one
 SELECT
-  id, name, url, private, created_at, updated_at, last_synced_at, image_url, image_size
+  id, name, url, private, created_at, updated_at, last_synced_at, image_url, image_size, hash
 FROM
   repositories
 WHERE
@@ -242,6 +245,7 @@ func (q *Queries) GetRepositoryByName(ctx context.Context, name string) (Reposit
 		&i.LastSyncedAt,
 		&i.ImageUrl,
 		&i.ImageSize,
+		&i.Hash,
 	)
 	return i, err
 }
@@ -373,6 +377,50 @@ func (q *Queries) InsertRepositoryStar(ctx context.Context, arg InsertRepository
 		arg.UpdatedAt,
 	)
 	return err
+}
+
+const updateRepository = `-- name: UpdateRepository :execresult
+UPDATE repositories
+SET
+  name = ?,
+  url = ?,
+  image_url = ?,
+  image_size = ?,
+  private = ?,
+  created_at = ?,
+  updated_at = ?,
+  last_synced_at = ?,
+  hash = ?
+WHERE
+  id = ?
+`
+
+type UpdateRepositoryParams struct {
+	Name         string
+	Url          string
+	ImageUrl     string
+	ImageSize    int32
+	Private      bool
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	LastSyncedAt time.Time
+	Hash         int64
+	ID           int32
+}
+
+func (q *Queries) UpdateRepository(ctx context.Context, arg UpdateRepositoryParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, updateRepository,
+		arg.Name,
+		arg.Url,
+		arg.ImageUrl,
+		arg.ImageSize,
+		arg.Private,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.LastSyncedAt,
+		arg.Hash,
+		arg.ID,
+	)
 }
 
 const updateRepositoryStar = `-- name: UpdateRepositoryStar :execresult
