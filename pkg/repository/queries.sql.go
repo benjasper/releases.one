@@ -12,7 +12,19 @@ import (
 )
 
 const createRepository = `-- name: CreateRepository :exec
-INSERT INTO repositories (name, url, image_url, image_size, private, created_at, updated_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO
+  repositories (
+    name,
+    url,
+    image_url,
+    image_size,
+    private,
+    created_at,
+    updated_at,
+    last_synced_at
+  )
+VALUES
+  (?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateRepositoryParams struct {
@@ -41,7 +53,10 @@ func (q *Queries) CreateRepository(ctx context.Context, arg CreateRepositoryPara
 }
 
 const createUser = `-- name: CreateUser :execresult
-INSERT INTO users (username, github_token, last_synced_at) VALUES (?, ?, ?)
+INSERT INTO
+  users (username, github_token, last_synced_at)
+VALUES
+  (?, ?, ?)
 `
 
 type CreateUserParams struct {
@@ -55,7 +70,12 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (sql.Res
 }
 
 const deleteReleasesOlderThan = `-- name: DeleteReleasesOlderThan :execresult
-DELETE FROM releases WHERE released_at < ? AND repository_id = ? ORDER BY released_at DESC
+DELETE FROM releases
+WHERE
+  released_at < ?
+  AND repository_id = ?
+ORDER BY
+  released_at DESC
 `
 
 type DeleteReleasesOlderThanParams struct {
@@ -68,7 +88,10 @@ func (q *Queries) DeleteReleasesOlderThan(ctx context.Context, arg DeleteRelease
 }
 
 const deleteRepositoryStarsUpdatedBefore = `-- name: DeleteRepositoryStarsUpdatedBefore :execresult
-DELETE FROM repository_stars WHERE updated_at < ? AND user_id = ?
+DELETE FROM repository_stars
+WHERE
+  updated_at < ?
+  AND user_id = ?
 `
 
 type DeleteRepositoryStarsUpdatedBeforeParams struct {
@@ -81,7 +104,14 @@ func (q *Queries) DeleteRepositoryStarsUpdatedBefore(ctx context.Context, arg De
 }
 
 const getReleases = `-- name: GetReleases :many
-SELECT id, repository_id, name, url, tag_name, description, author, is_prerelease, released_at, created_at, updated_at FROM releases WHERE repository_id = ? ORDER BY released_at DESC
+SELECT
+  id, repository_id, name, url, tag_name, description, author, is_prerelease, released_at, created_at, updated_at
+FROM
+  releases
+WHERE
+  repository_id = ?
+ORDER BY
+  released_at DESC
 `
 
 func (q *Queries) GetReleases(ctx context.Context, repositoryID int32) ([]Release, error) {
@@ -120,11 +150,19 @@ func (q *Queries) GetReleases(ctx context.Context, repositoryID int32) ([]Releas
 }
 
 const getReleasesForUser = `-- name: GetReleasesForUser :many
-SELECT releases.id, releases.repository_id, releases.name, releases.url, releases.tag_name, releases.description, releases.author, releases.is_prerelease, releases.released_at, releases.created_at, releases.updated_at, ` + "`" + `repositories` + "`" + `.` + "`" + `name` + "`" + ` AS repository_name, ` + "`" + `repositories` + "`" + `.` + "`" + `image_url` + "`" + ` AS image_url, ` + "`" + `repositories` + "`" + `.` + "`" + `image_size` + "`" + ` AS image_size
-	FROM ` + "`" + `releases` + "`" + ` 
-	LEFT JOIN ` + "`" + `repositories` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repositories` + "`" + `.` + "`" + `id` + "`" + ` 
-	INNER JOIN ` + "`" + `repository_stars` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repository_stars` + "`" + `.` + "`" + `repository_id` + "`" + ` 
-	WHERE ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ? ORDER BY releases.released_at DESC
+SELECT
+  releases.id, releases.repository_id, releases.name, releases.url, releases.tag_name, releases.description, releases.author, releases.is_prerelease, releases.released_at, releases.created_at, releases.updated_at,
+  ` + "`" + `repositories` + "`" + `.` + "`" + `name` + "`" + ` AS repository_name,
+  ` + "`" + `repositories` + "`" + `.` + "`" + `image_url` + "`" + ` AS image_url,
+  ` + "`" + `repositories` + "`" + `.` + "`" + `image_size` + "`" + ` AS image_size
+FROM
+  ` + "`" + `releases` + "`" + `
+  LEFT JOIN ` + "`" + `repositories` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repositories` + "`" + `.` + "`" + `id` + "`" + `
+  INNER JOIN ` + "`" + `repository_stars` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repository_stars` + "`" + `.` + "`" + `repository_id` + "`" + `
+WHERE
+  ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ?
+ORDER BY
+  releases.released_at DESC
 `
 
 type GetReleasesForUserRow struct {
@@ -183,7 +221,12 @@ func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetRe
 }
 
 const getRepositoryByName = `-- name: GetRepositoryByName :one
-SELECT id, name, url, private, created_at, updated_at, last_synced_at, image_url, image_size FROM repositories WHERE name = ?
+SELECT
+  id, name, url, private, created_at, updated_at, last_synced_at, image_url, image_size
+FROM
+  repositories
+WHERE
+  name = ?
 `
 
 func (q *Queries) GetRepositoryByName(ctx context.Context, name string) (Repository, error) {
@@ -204,7 +247,12 @@ func (q *Queries) GetRepositoryByName(ctx context.Context, name string) (Reposit
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, github_token, last_synced_at FROM users WHERE username = ?
+SELECT
+  id, username, github_token, last_synced_at
+FROM
+  users
+WHERE
+  username = ?
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -220,7 +268,12 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 }
 
 const getUsersInNeedOfAnUpdate = `-- name: GetUsersInNeedOfAnUpdate :many
-SELECT id, username, github_token, last_synced_at FROM users WHERE last_synced_at < ?
+SELECT
+  id, username, github_token, last_synced_at
+FROM
+  users
+WHERE
+  last_synced_at < ?
 `
 
 func (q *Queries) GetUsersInNeedOfAnUpdate(ctx context.Context, lastSyncedAt time.Time) ([]User, error) {
@@ -252,7 +305,21 @@ func (q *Queries) GetUsersInNeedOfAnUpdate(ctx context.Context, lastSyncedAt tim
 }
 
 const insertRelease = `-- name: InsertRelease :exec
-INSERT INTO releases (repository_id, name, author, tag_name, url, description, released_at, created_at, updated_at, is_prerelease) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO
+  releases (
+    repository_id,
+    name,
+    author,
+    tag_name,
+    url,
+    description,
+    released_at,
+    created_at,
+    updated_at,
+    is_prerelease
+  )
+VALUES
+  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertReleaseParams struct {
@@ -285,7 +352,10 @@ func (q *Queries) InsertRelease(ctx context.Context, arg InsertReleaseParams) er
 }
 
 const insertRepositoryStar = `-- name: InsertRepositoryStar :exec
-INSERT INTO repository_stars (repository_id, user_id, created_at, updated_at) VALUES (?, ?, ?, ?)
+INSERT INTO
+  repository_stars (repository_id, user_id, created_at, updated_at)
+VALUES
+  (?, ?, ?, ?)
 `
 
 type InsertRepositoryStarParams struct {
@@ -306,7 +376,12 @@ func (q *Queries) InsertRepositoryStar(ctx context.Context, arg InsertRepository
 }
 
 const updateRepositoryStar = `-- name: UpdateRepositoryStar :execresult
-UPDATE repository_stars SET updated_at = ? WHERE repository_id = ? AND user_id = ?
+UPDATE repository_stars
+SET
+  updated_at = ?
+WHERE
+  repository_id = ?
+  AND user_id = ?
 `
 
 type UpdateRepositoryStarParams struct {
@@ -320,7 +395,11 @@ func (q *Queries) UpdateRepositoryStar(ctx context.Context, arg UpdateRepository
 }
 
 const updateUserSyncedAt = `-- name: UpdateUserSyncedAt :exec
-UPDATE users SET last_synced_at = ? WHERE id = ?
+UPDATE users
+SET
+  last_synced_at = ?
+WHERE
+  id = ?
 `
 
 type UpdateUserSyncedAtParams struct {
@@ -334,7 +413,11 @@ func (q *Queries) UpdateUserSyncedAt(ctx context.Context, arg UpdateUserSyncedAt
 }
 
 const updateUserToken = `-- name: UpdateUserToken :exec
-UPDATE users SET github_token = ? WHERE id = ?
+UPDATE users
+SET
+  github_token = ?
+WHERE
+  id = ?
 `
 
 type UpdateUserTokenParams struct {

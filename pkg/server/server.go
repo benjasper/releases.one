@@ -22,8 +22,11 @@ import (
 )
 
 type FeedType string
-var AtomFeedType FeedType = "application/atom+xml"
-var RssFeedType FeedType = "application/rss+xml"
+
+var (
+	AtomFeedType FeedType = "application/atom+xml"
+	RssFeedType  FeedType = "application/rss+xml"
+)
 
 type Server struct {
 	repository        *repository.Queries
@@ -76,7 +79,6 @@ func (s *Server) Start() {
 				slog.Info(fmt.Sprintf("Failed to sync user: %s", err.Error()))
 			}
 		}
-
 	}, s))
 	if err != nil {
 		log.Fatal(err)
@@ -183,6 +185,12 @@ func (s *Server) syncUser(ctx context.Context, user *repository.User) error {
 	slog.Info(fmt.Sprintf("Syncing user: %s", user.Username))
 
 	syncStartedAt := time.Now()
+
+	test, err := time.Parse(time.RFC3339, "-10-01T00:00:00Z")
+	if err != nil {
+		return err
+	}
+	slog.Info(fmt.Sprintf("test: %s", test.String()))
 
 	githubService, newToken, err := github.NewGitHubService(ctx, s.githubOAuthConfig, (*oauth2.Token)(&user.GithubToken))
 	if err != nil {
