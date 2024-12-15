@@ -318,11 +318,11 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 
 					err = s.repository.InsertRelease(ctx, repository.InsertReleaseParams{
 						RepositoryID: githubRepo.ID,
-						Name:         author,
+						Name:         ghRelease.Name,
 						TagName:      ghRelease.TagName,
 						Url:          ghRelease.URL,
 						Description:  ghRelease.DescriptionHTML,
-						Author:       sql.NullString{String: ghRelease.Author.Name, Valid: ghRelease.Author.Name != ""},
+						Author:       sql.NullString{String: author },
 						ReleasedAt:   ghRelease.PublishedAt,
 						IsPrerelease: ghRelease.IsPrerelease,
 						CreatedAt:    time.Now(),
