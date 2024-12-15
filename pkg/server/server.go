@@ -253,11 +253,10 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 				return nil
 			}
 
-			hashUnsigned, err := hashstructure.Hash(repo, hashstructure.FormatV2, nil)
+			hash, err := hashstructure.Hash(repo, hashstructure.FormatV2, nil)
 			if err != nil {
 				return err
 			}
-			hash := int64(hashUnsigned)
 
 			githubRepo, err := s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
 			if err != nil && errors.Is(err, sql.ErrNoRows) {
