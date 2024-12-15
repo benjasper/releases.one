@@ -299,12 +299,13 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 
 					githubRepo.ImageUrl = repo.OpenGraphImageURL
 					githubRepo.ImageSize = int32(openGraphImageSize)
-					githubRepo.Hash = hash
-					githubRepo.UpdatedAt = time.Now()
 				}
 
 				// Check hash
 				if hash != githubRepo.Hash {
+					githubRepo.Hash = hash
+					githubRepo.UpdatedAt = time.Now()
+
 					slog.Info(fmt.Sprintf("Repository hash changed, updating repository: %s", repo.NameWithOwner))
 					_, err = s.repository.UpdateRepository(ctx, repository.UpdateRepositoryParams{
 						ID:           githubRepo.ID,
