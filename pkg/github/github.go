@@ -109,7 +109,7 @@ func (s *GitHubService) GetUserData(ctx context.Context) (*UserData, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("unexpected response from GitHub")
+		return nil, fmt.Errorf("unexpected response from GitHub, while fetching user data: %s", resp.Status)
 	}
 
 	var userData UserData
@@ -128,7 +128,7 @@ func (s *GitHubService) GetImageSize(ctx context.Context, url string) (int, erro
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, errors.New("unexpected response from GitHub")
+		return 0, fmt.Errorf("unexpected response from GitHub, while fetching image size: %s", resp.Status)
 	}
 
 	contentLengthHeader := resp.Header.Get("Content-Length")
