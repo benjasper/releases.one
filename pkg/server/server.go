@@ -55,7 +55,7 @@ func (s *Server) Start() {
 	})
 
 	scheduler, err := gocron.NewScheduler()
-	_, err = scheduler.NewJob(gocron.DurationJob(time.Minute*5), gocron.NewTask(func(s *Server) {
+	_, err = scheduler.NewJob(gocron.CronJob("*/5 * * * *", false), gocron.NewTask(func(s *Server) {
 		interval := os.Getenv("USER_SYNC_INTERVAL")
 		if interval == "" {
 			interval = "8"
