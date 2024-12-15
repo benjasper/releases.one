@@ -455,8 +455,8 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedTy
 
 		if release.ImageUrl.Valid {
 			feedItem.Enclosure = &feeds.Enclosure{
-				Url: release.ImageUrl.String,
-				Type:   "image/png",
+				Url:  release.ImageUrl.String,
+				Type: "image/png",
 				// Length: strconv.Itoa(int(release.ImageSize.Int32)),
 			}
 		}
