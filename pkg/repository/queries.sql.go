@@ -37,7 +37,7 @@ type CreateRepositoryParams struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	LastSyncedAt time.Time
-	Hash         int64
+	Hash         uint64
 }
 
 func (q *Queries) CreateRepository(ctx context.Context, arg CreateRepositoryParams) error {
@@ -382,7 +382,6 @@ func (q *Queries) InsertRepositoryStar(ctx context.Context, arg InsertRepository
 const updateRepository = `-- name: UpdateRepository :execresult
 UPDATE repositories
 SET
-  name = ?,
   url = ?,
   image_url = ?,
   image_size = ?,
@@ -396,7 +395,6 @@ WHERE
 `
 
 type UpdateRepositoryParams struct {
-	Name         string
 	Url          string
 	ImageUrl     string
 	ImageSize    int32
@@ -404,13 +402,12 @@ type UpdateRepositoryParams struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	LastSyncedAt time.Time
-	Hash         int64
+	Hash         uint64
 	ID           int32
 }
 
 func (q *Queries) UpdateRepository(ctx context.Context, arg UpdateRepositoryParams) (sql.Result, error) {
 	return q.db.ExecContext(ctx, updateRepository,
-		arg.Name,
 		arg.Url,
 		arg.ImageUrl,
 		arg.ImageSize,
