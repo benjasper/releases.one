@@ -330,6 +330,15 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 				UserID:       user.ID,
 			})
 			if err != nil && errors.Is(err, sql.ErrNoRows) {
+			} else if err != nil {
+				return err
+			}
+			rowsAffected, err := result.RowsAffected()
+			if err != nil {
+				return err
+			}
+
+			if rowsAffected == 0 {
 				slog.Info(fmt.Sprintf("No repository star found, creating new repository star: %s", repo.NameWithOwner))
 				err = s.repository.InsertRepositoryStar(ctx, repository.InsertRepositoryStarParams{
 					RepositoryID: githubRepo.ID,
@@ -340,8 +349,6 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 				if err != nil {
 					return err
 				}
-			} else if err != nil {
-				return err
 			}
 
 			releases, err := s.repository.GetReleases(ctx, githubRepo.ID)
