@@ -262,16 +262,16 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 			if err != nil && errors.Is(err, sql.ErrNoRows) {
 				slog.Info(fmt.Sprintf("No repository found, creating new repository: %s", repo.NameWithOwner))
 
-				openGraphImageSize, err := githubService.GetImageSize(ctx, repo.OpenGraphImageURL)
-				if err != nil {
-					return err
-				}
+				// openGraphImageSize, err := githubService.GetImageSize(ctx, repo.OpenGraphImageURL)
+				// if err != nil {
+				// 	return err
+				// }
 
 				err = s.repository.CreateRepository(ctx, repository.CreateRepositoryParams{
 					Name:         repo.NameWithOwner,
 					Url:          repo.URL,
 					ImageUrl:     repo.OpenGraphImageURL,
-					ImageSize:    int32(openGraphImageSize),
+					ImageSize:    0,
 					Private:      repo.IsPrivate,
 					CreatedAt:    time.Now(),
 					UpdatedAt:    time.Now(),
@@ -290,15 +290,15 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 				return err
 			} else {
 				// In case the image changed, refetch the image size
-				if repo.OpenGraphImageURL != githubRepo.ImageUrl {
-					openGraphImageSize, err := githubService.GetImageSize(ctx, repo.OpenGraphImageURL)
-					if err != nil {
-						return err
-					}
-
-					githubRepo.ImageUrl = repo.OpenGraphImageURL
-					githubRepo.ImageSize = int32(openGraphImageSize)
-				}
+				// if repo.OpenGraphImageURL != githubRepo.ImageUrl {
+				// 	openGraphImageSize, err := githubService.GetImageSize(ctx, repo.OpenGraphImageURL)
+				// 	if err != nil {
+				// 		return err
+				// 	}
+				//
+				// 	githubRepo.ImageUrl = repo.OpenGraphImageURL
+				// 	githubRepo.ImageSize = int32(openGraphImageSize)
+				// }
 
 				// Check hash
 				if hash != githubRepo.Hash {
@@ -449,8 +449,8 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedTy
 		if release.ImageUrl.Valid {
 			feedItem.Enclosure = &feeds.Enclosure{
 				Url:    release.ImageUrl.String,
-				Type:   "image/png",
-				Length: strconv.Itoa(int(release.ImageSize.Int32)),
+				// Type:   "image/png",
+				// Length: strconv.Itoa(int(release.ImageSize.Int32)),
 			}
 		}
 
