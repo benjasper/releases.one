@@ -209,6 +209,7 @@ func (s *Server) syncUser(ctx context.Context, user *repository.User) error {
 
 	result, err := s.repository.DeleteRepositoryStarsUpdatedBefore(ctx, repository.DeleteRepositoryStarsUpdatedBeforeParams{
 		UpdatedAt: syncStartedAt,
+		UserID:    user.ID,
 	})
 	if err != nil {
 		return err
