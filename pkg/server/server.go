@@ -322,7 +322,7 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 						TagName:      ghRelease.TagName,
 						Url:          ghRelease.URL,
 						Description:  ghRelease.DescriptionHTML,
-						Author:       sql.NullString{String: author },
+						Author:       sql.NullString{String: author, Valid: author != ""},
 						ReleasedAt:   ghRelease.PublishedAt,
 						IsPrerelease: ghRelease.IsPrerelease,
 						CreatedAt:    time.Now(),
