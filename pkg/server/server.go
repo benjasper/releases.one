@@ -32,12 +32,16 @@ var (
 type Server struct {
 	repository        *repository.Queries
 	githubOAuthConfig *oauth2.Config
+	repositoryMutex   *KeyedMutex
+	userMutex         *KeyedMutex
 }
 
 func NewServer(repository *repository.Queries, githubOAuthConfig *oauth2.Config) *Server {
 	return &Server{
 		repository:        repository,
 		githubOAuthConfig: githubOAuthConfig,
+		repositoryMutex:   NewKeyedMutex(),
+		userMutex:         NewKeyedMutex(),
 	}
 }
 
@@ -191,6 +195,9 @@ func (s *Server) PostTriggerSync(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) syncUser(ctx context.Context, user *repository.User) error {
+	s.userMutex.Lock(user.Username)
+	defer s.userMutex.Unlock(user.Username)
+
 	slog.Info(fmt.Sprintf("Syncing user: %s", user.Username))
 
 	syncStartedAt := time.Now()
@@ -254,7 +261,12 @@ func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *reposito
 			}
 			return err
 		}
+
 		group.Go(func() error {
+			// Lock the syncing of this repository by name
+			s.repositoryMutex.Lock(repo.NameWithOwner)
+			defer s.repositoryMutex.Unlock(repo.NameWithOwner)
+
 			// Ignore private repositories for now
 			if repo.IsPrivate {
 				return nil

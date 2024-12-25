@@ -9,27 +9,26 @@ import (
 func TestKeyedMutex_Lock_ReferenceCounting(t *testing.T) {
 	key := "test"
 	iterations := 100
-	var km KeyedMutex
+	km := NewKeyedMutex()
 
 	testArray := []int{}
 
 	wg := sync.WaitGroup{}
 	for i := 0; i < iterations; i++ {
 		wg.Add(1)
-		go startJob(&km, key, i, &wg, &testArray)
+		go startJob(km, key, i, &wg, &testArray)
 	}
 
 	wg.Wait()
 
 	// Check if map is empty
 	counter := 0
-	km.m.Range(func(key, value any) bool {
+	for range km.m {
 		counter++
-		return true
-	})
+	}
 
 	if counter != 0 {
-		// t.Errorf("Map should be empty: %d", counter)
+		t.Errorf("Map should be empty: %d", counter)
 	}
 
 	// Check if the array contains every number from 0 to 99
