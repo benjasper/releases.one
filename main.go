@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/benjasper/releases.one/pkg/repository"
-	"github.com/benjasper/releases.one/pkg/server"
+	"github.com/benjasper/releases.one/internal/repository"
+	"github.com/benjasper/releases.one/internal/server"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
@@ -21,15 +21,13 @@ func main() {
 	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
 	redirectURL := os.Getenv("GITHUB_CALLBACK_URL")
 
-	var (
-		oauthConfig = &oauth2.Config{
-			ClientID:     clientID,
-			ClientSecret: clientSecret,
-			RedirectURL:  redirectURL,
-			Scopes:       []string{"user:email", "read:user"}, // Add scopes as needed
-			Endpoint:     github.Endpoint,
-		}
-	)
+	oauthConfig := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  redirectURL,
+		Scopes:       []string{"user:email", "read:user"}, // Add scopes as needed
+		Endpoint:     github.Endpoint,
+	}
 
 	connectionString := os.Getenv("DATABASE_URL")
 

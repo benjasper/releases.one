@@ -13,8 +13,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/benjasper/releases.one/pkg/github"
-	"github.com/benjasper/releases.one/pkg/repository"
+	"github.com/benjasper/releases.one/internal/github"
+	"github.com/benjasper/releases.one/internal/repository"
+	"github.com/benjasper/releases.one/pkg/keyedmutex"
 	"github.com/go-co-op/gocron/v2"
 	"github.com/gorilla/feeds"
 	"github.com/mitchellh/hashstructure/v2"
@@ -32,16 +33,16 @@ var (
 type Server struct {
 	repository        *repository.Queries
 	githubOAuthConfig *oauth2.Config
-	repositoryMutex   *KeyedMutex
-	userMutex         *KeyedMutex
+	repositoryMutex   *keyedmutex.KeyedMutex
+	userMutex         *keyedmutex.KeyedMutex
 }
 
 func NewServer(repository *repository.Queries, githubOAuthConfig *oauth2.Config) *Server {
 	return &Server{
 		repository:        repository,
 		githubOAuthConfig: githubOAuthConfig,
-		repositoryMutex:   NewKeyedMutex(),
-		userMutex:         NewKeyedMutex(),
+		repositoryMutex:   keyedmutex.NewKeyedMutex(),
+		userMutex:         keyedmutex.NewKeyedMutex(),
 	}
 }
 
