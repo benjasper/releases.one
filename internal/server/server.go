@@ -263,6 +263,7 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedTy
 
 	for _, release := range releases {
 		feedItem := &feeds.Item{
+			Id:      fmt.Sprintf("releases.one-%s-%s", release.RepositoryGithubID.String, release.GithubID),
 			Title:   fmt.Sprintf("%s: %s", release.RepositoryName.String, release.Name),
 			Link:    &feeds.Link{Href: release.Url},
 			Content: release.Description,

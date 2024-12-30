@@ -167,6 +167,7 @@ func (q *Queries) GetReleases(ctx context.Context, repositoryID int32) ([]Releas
 const getReleasesForUser = `-- name: GetReleasesForUser :many
 SELECT
   ` + "`" + `releases` + "`" + `.` + "`" + `id` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `github_id` + "`" + `,
   ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + `,
   ` + "`" + `releases` + "`" + `.` + "`" + `name` + "`" + `,
   ` + "`" + `releases` + "`" + `.` + "`" + `url` + "`" + `,
@@ -179,7 +180,8 @@ SELECT
   ` + "`" + `releases` + "`" + `.` + "`" + `updated_at` + "`" + `,
   ` + "`" + `repositories` + "`" + `.` + "`" + `name` + "`" + ` AS repository_name,
   ` + "`" + `repositories` + "`" + `.` + "`" + `image_url` + "`" + ` AS image_url,
-  ` + "`" + `repositories` + "`" + `.` + "`" + `image_size` + "`" + ` AS image_size
+  ` + "`" + `repositories` + "`" + `.` + "`" + `image_size` + "`" + ` AS image_size,
+  ` + "`" + `repositories` + "`" + `.` + "`" + `github_id` + "`" + ` AS repository_github_id
 FROM
   ` + "`" + `releases` + "`" + `
   LEFT JOIN ` + "`" + `repositories` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repositories` + "`" + `.` + "`" + `id` + "`" + `
@@ -193,20 +195,22 @@ LIMIT
 `
 
 type GetReleasesForUserRow struct {
-	ID             int32
-	RepositoryID   int32
-	Name           string
-	Url            string
-	TagName        string
-	Description    string
-	Author         sql.NullString
-	IsPrerelease   bool
-	ReleasedAt     time.Time
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	RepositoryName sql.NullString
-	ImageUrl       sql.NullString
-	ImageSize      sql.NullInt32
+	ID                 int32
+	GithubID           string
+	RepositoryID       int32
+	Name               string
+	Url                string
+	TagName            string
+	Description        string
+	Author             sql.NullString
+	IsPrerelease       bool
+	ReleasedAt         time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	RepositoryName     sql.NullString
+	ImageUrl           sql.NullString
+	ImageSize          sql.NullInt32
+	RepositoryGithubID sql.NullString
 }
 
 func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetReleasesForUserRow, error) {
@@ -220,6 +224,7 @@ func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetRe
 		var i GetReleasesForUserRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.GithubID,
 			&i.RepositoryID,
 			&i.Name,
 			&i.Url,
@@ -233,6 +238,7 @@ func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetRe
 			&i.RepositoryName,
 			&i.ImageUrl,
 			&i.ImageSize,
+			&i.RepositoryGithubID,
 		); err != nil {
 			return nil, err
 		}
@@ -250,6 +256,7 @@ func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetRe
 const getReleasesForUserShortDescription = `-- name: GetReleasesForUserShortDescription :many
 SELECT
   ` + "`" + `releases` + "`" + `.` + "`" + `id` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `github_id` + "`" + `,
   ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + `,
   ` + "`" + `releases` + "`" + `.` + "`" + `name` + "`" + `,
   ` + "`" + `releases` + "`" + `.` + "`" + `url` + "`" + `,
@@ -277,6 +284,7 @@ LIMIT
 
 type GetReleasesForUserShortDescriptionRow struct {
 	ID               int32
+	GithubID         string
 	RepositoryID     int32
 	Name             string
 	Url              string
@@ -303,6 +311,7 @@ func (q *Queries) GetReleasesForUserShortDescription(ctx context.Context, userID
 		var i GetReleasesForUserShortDescriptionRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.GithubID,
 			&i.RepositoryID,
 			&i.Name,
 			&i.Url,

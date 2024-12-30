@@ -173,6 +173,7 @@ ORDER BY
 -- name: GetReleasesForUser :many
 SELECT
   `releases`.`id`,
+  `releases`.`github_id`,
   `releases`.`repository_id`,
   `releases`.`name`,
   `releases`.`url`,
@@ -185,7 +186,8 @@ SELECT
   `releases`.`updated_at`,
   `repositories`.`name` AS repository_name,
   `repositories`.`image_url` AS image_url,
-  `repositories`.`image_size` AS image_size
+  `repositories`.`image_size` AS image_size,
+  `repositories`.`github_id` AS repository_github_id
 FROM
   `releases`
   LEFT JOIN `repositories` ON `releases`.`repository_id` = `repositories`.`id`
@@ -200,6 +202,7 @@ LIMIT
 -- name: GetReleasesForUserShortDescription :many
 SELECT
   `releases`.`id`,
+  `releases`.`github_id`,
   `releases`.`repository_id`,
   `releases`.`name`,
   `releases`.`url`,
