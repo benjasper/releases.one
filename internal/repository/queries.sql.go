@@ -173,6 +173,7 @@ SELECT
   ` + "`" + `releases` + "`" + `.` + "`" + `url` + "`" + `,
   ` + "`" + `releases` + "`" + `.` + "`" + `tag_name` + "`" + `,
   ` + "`" + `releases` + "`" + `.` + "`" + `description` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `description_short` + "`" + `,
   ` + "`" + `releases` + "`" + `.` + "`" + `author` + "`" + `,
   ` + "`" + `releases` + "`" + `.` + "`" + `is_prerelease` + "`" + `,
   ` + "`" + `releases` + "`" + `.` + "`" + `released_at` + "`" + `,
@@ -202,6 +203,7 @@ type GetReleasesForUserRow struct {
 	Url                string
 	TagName            string
 	Description        string
+	DescriptionShort   string
 	Author             sql.NullString
 	IsPrerelease       bool
 	ReleasedAt         time.Time
@@ -230,6 +232,7 @@ func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetRe
 			&i.Url,
 			&i.TagName,
 			&i.Description,
+			&i.DescriptionShort,
 			&i.Author,
 			&i.IsPrerelease,
 			&i.ReleasedAt,

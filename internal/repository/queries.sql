@@ -179,6 +179,7 @@ SELECT
   `releases`.`url`,
   `releases`.`tag_name`,
   `releases`.`description`,
+  `releases`.`description_short`,
   `releases`.`author`,
   `releases`.`is_prerelease`,
   `releases`.`released_at`,

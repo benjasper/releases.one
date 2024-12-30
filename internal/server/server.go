@@ -266,6 +266,7 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedTy
 			Id:      fmt.Sprintf("releases.one-%s-%s", release.RepositoryGithubID.String, release.GithubID),
 			Title:   fmt.Sprintf("%s: %s", release.RepositoryName.String, release.Name),
 			Link:    &feeds.Link{Href: release.Url},
+			Description: release.DescriptionShort,
 			Content: release.Description,
 			Created: release.ReleasedAt,
 		}
