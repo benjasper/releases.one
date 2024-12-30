@@ -14,6 +14,7 @@ import (
 const createRepository = `-- name: CreateRepository :exec
 INSERT INTO
   repositories (
+    github_id,
     name,
     url,
     image_url,
@@ -25,10 +26,11 @@ INSERT INTO
     hash
   )
 VALUES
-  (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateRepositoryParams struct {
+	GithubID     string
 	Name         string
 	Url          string
 	ImageUrl     string
@@ -42,6 +44,7 @@ type CreateRepositoryParams struct {
 
 func (q *Queries) CreateRepository(ctx context.Context, arg CreateRepositoryParams) error {
 	_, err := q.db.ExecContext(ctx, createRepository,
+		arg.GithubID,
 		arg.Name,
 		arg.Url,
 		arg.ImageUrl,
@@ -114,7 +117,7 @@ func (q *Queries) DeleteRepositoryStarsUpdatedBefore(ctx context.Context, arg De
 
 const getReleases = `-- name: GetReleases :many
 SELECT
-  id, repository_id, name, url, tag_name, description, description_short, author, is_prerelease, released_at, created_at, updated_at
+  github_id, id, repository_id, name, url, tag_name, description, description_short, author, is_prerelease, released_at, created_at, updated_at, hash
 FROM
   releases
 WHERE
@@ -133,6 +136,7 @@ func (q *Queries) GetReleases(ctx context.Context, repositoryID int32) ([]Releas
 	for rows.Next() {
 		var i Release
 		if err := rows.Scan(
+			&i.GithubID,
 			&i.ID,
 			&i.RepositoryID,
 			&i.Name,
@@ -145,6 +149,7 @@ func (q *Queries) GetReleases(ctx context.Context, repositoryID int32) ([]Releas
 			&i.ReleasedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Hash,
 		); err != nil {
 			return nil, err
 		}
@@ -183,7 +188,8 @@ WHERE
   ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ?
 ORDER BY
   releases.released_at DESC
-LIMIT 100
+LIMIT
+  100
 `
 
 type GetReleasesForUserRow struct {
@@ -265,7 +271,8 @@ WHERE
   ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ?
 ORDER BY
   releases.released_at DESC
-LIMIT 100
+LIMIT
+  100
 `
 
 type GetReleasesForUserShortDescriptionRow struct {
@@ -323,20 +330,21 @@ func (q *Queries) GetReleasesForUserShortDescription(ctx context.Context, userID
 	return items, nil
 }
 
-const getRepositoryByName = `-- name: GetRepositoryByName :one
+const getRepositoryByGithubID = `-- name: GetRepositoryByGithubID :one
 SELECT
-  id, name, url, private, created_at, updated_at, last_synced_at, image_url, image_size, hash
+  id, github_id, name, url, private, created_at, updated_at, last_synced_at, image_url, image_size, hash
 FROM
   repositories
 WHERE
-  name = ?
+  github_id = ?
 `
 
-func (q *Queries) GetRepositoryByName(ctx context.Context, name string) (Repository, error) {
-	row := q.db.QueryRowContext(ctx, getRepositoryByName, name)
+func (q *Queries) GetRepositoryByGithubID(ctx context.Context, githubID string) (Repository, error) {
+	row := q.db.QueryRowContext(ctx, getRepositoryByGithubID, githubID)
 	var i Repository
 	err := row.Scan(
 		&i.ID,
+		&i.GithubID,
 		&i.Name,
 		&i.Url,
 		&i.Private,
@@ -352,7 +360,7 @@ func (q *Queries) GetRepositoryByName(ctx context.Context, name string) (Reposit
 
 const getUserByGitHubID = `-- name: GetUserByGitHubID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at
+  id, username, github_id, github_token, last_synced_at, public_id
 FROM
   users
 WHERE
@@ -368,13 +376,14 @@ func (q *Queries) GetUserByGitHubID(ctx context.Context, githubID uint64) (User,
 		&i.GithubID,
 		&i.GithubToken,
 		&i.LastSyncedAt,
+		&i.PublicID,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at
+  id, username, github_id, github_token, last_synced_at, public_id
 FROM
   users
 WHERE
@@ -390,13 +399,37 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.GithubID,
 		&i.GithubToken,
 		&i.LastSyncedAt,
+		&i.PublicID,
+	)
+	return i, err
+}
+
+const getUserByPublicID = `-- name: GetUserByPublicID :one
+SELECT
+  id, username, github_id, github_token, last_synced_at, public_id
+FROM
+  users
+WHERE
+  public_id = ?
+`
+
+func (q *Queries) GetUserByPublicID(ctx context.Context, publicID sql.NullString) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByPublicID, publicID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.GithubID,
+		&i.GithubToken,
+		&i.LastSyncedAt,
+		&i.PublicID,
 	)
 	return i, err
 }
 
 const getUsersInNeedOfAnUpdate = `-- name: GetUsersInNeedOfAnUpdate :many
 SELECT
-  id, username, github_id, github_token, last_synced_at
+  id, username, github_id, github_token, last_synced_at, public_id
 FROM
   users
 WHERE
@@ -418,6 +451,7 @@ func (q *Queries) GetUsersInNeedOfAnUpdate(ctx context.Context, lastSyncedAt tim
 			&i.GithubID,
 			&i.GithubToken,
 			&i.LastSyncedAt,
+			&i.PublicID,
 		); err != nil {
 			return nil, err
 		}
@@ -435,23 +469,26 @@ func (q *Queries) GetUsersInNeedOfAnUpdate(ctx context.Context, lastSyncedAt tim
 const insertRelease = `-- name: InsertRelease :exec
 INSERT INTO
   releases (
+    github_id,
     repository_id,
     name,
     author,
     tag_name,
     url,
     description,
-	description_short,
+    description_short,
+    hash,
     released_at,
     created_at,
     updated_at,
     is_prerelease
   )
 VALUES
-  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertReleaseParams struct {
+	GithubID         string
 	RepositoryID     int32
 	Name             string
 	Author           sql.NullString
@@ -459,6 +496,7 @@ type InsertReleaseParams struct {
 	Url              string
 	Description      string
 	DescriptionShort string
+	Hash             uint64
 	ReleasedAt       time.Time
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
@@ -467,6 +505,7 @@ type InsertReleaseParams struct {
 
 func (q *Queries) InsertRelease(ctx context.Context, arg InsertReleaseParams) error {
 	_, err := q.db.ExecContext(ctx, insertRelease,
+		arg.GithubID,
 		arg.RepositoryID,
 		arg.Name,
 		arg.Author,
@@ -474,6 +513,7 @@ func (q *Queries) InsertRelease(ctx context.Context, arg InsertReleaseParams) er
 		arg.Url,
 		arg.Description,
 		arg.DescriptionShort,
+		arg.Hash,
 		arg.ReleasedAt,
 		arg.CreatedAt,
 		arg.UpdatedAt,
@@ -504,6 +544,53 @@ func (q *Queries) InsertRepositoryStar(ctx context.Context, arg InsertRepository
 		arg.UpdatedAt,
 	)
 	return err
+}
+
+const updateRelease = `-- name: UpdateRelease :execresult
+UPDATE releases
+SET
+  github_id = ?,
+  name = ?,
+  url = ?,
+  description = ?,
+  description_short = ?,
+  author = ?,
+  is_prerelease = ?,
+  released_at = ?,
+  updated_at = ?,
+  hash = ?
+WHERE
+  id = ?
+`
+
+type UpdateReleaseParams struct {
+	GithubID         string
+	Name             string
+	Url              string
+	Description      string
+	DescriptionShort string
+	Author           sql.NullString
+	IsPrerelease     bool
+	ReleasedAt       time.Time
+	UpdatedAt        time.Time
+	Hash             uint64
+	ID               int32
+}
+
+func (q *Queries) UpdateRelease(ctx context.Context, arg UpdateReleaseParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, updateRelease,
+		arg.GithubID,
+		arg.Name,
+		arg.Url,
+		arg.Description,
+		arg.DescriptionShort,
+		arg.Author,
+		arg.IsPrerelease,
+		arg.ReleasedAt,
+		arg.UpdatedAt,
+		arg.Hash,
+		arg.ID,
+	)
 }
 
 const updateRepository = `-- name: UpdateRepository :execresult
@@ -564,6 +651,24 @@ type UpdateRepositoryStarParams struct {
 
 func (q *Queries) UpdateRepositoryStar(ctx context.Context, arg UpdateRepositoryStarParams) (sql.Result, error) {
 	return q.db.ExecContext(ctx, updateRepositoryStar, arg.UpdatedAt, arg.RepositoryID, arg.UserID)
+}
+
+const updateUserPublicID = `-- name: UpdateUserPublicID :exec
+UPDATE users
+SET
+  public_id = ?
+WHERE
+  id = ?
+`
+
+type UpdateUserPublicIDParams struct {
+	PublicID sql.NullString
+	ID       int32
+}
+
+func (q *Queries) UpdateUserPublicID(ctx context.Context, arg UpdateUserPublicIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserPublicID, arg.PublicID, arg.ID)
+	return err
 }
 
 const updateUserSyncedAt = `-- name: UpdateUserSyncedAt :exec

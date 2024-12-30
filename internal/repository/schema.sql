@@ -4,12 +4,15 @@ CREATE TABLE `users` (
   `github_id` BIGINT UNSIGNED NOT NULL,
   `github_token` JSON NOT NULL,
   `last_synced_at` DATETIME NOT NULL,
+  `public_id` VARCHAR(255),
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `github_id` (`github_id`)
+  UNIQUE INDEX `github_id` (`github_id`),
+  UNIQUE INDEX `public_id` (`public_id`)
 );
 
 CREATE TABLE `repositories` (
   `id` INT NOT NULL AUTO_INCREMENT,
+  `github_id` varchar(255) NOT NULL,
   `name` VARCHAR(255) NOT NULL,
   `url` VARCHAR(255) NOT NULL,
   `private` BOOLEAN NOT NULL,
@@ -19,7 +22,8 @@ CREATE TABLE `repositories` (
   `image_url` VARCHAR(255) NOT NULL,
   `image_size` INT NOT NULL,
   `hash` BIGINT UNSIGNED NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `github_id` (`github_id`)
 );
 
 CREATE TABLE `repository_stars` (
@@ -33,6 +37,7 @@ CREATE TABLE `repository_stars` (
 );
 
 CREATE TABLE `releases` (
+  `github_id` varchar(255) NOT NULL,
   `id` INT NOT NULL AUTO_INCREMENT,
   `repository_id` INT NOT NULL,
   `name` VARCHAR(255) NOT NULL,
@@ -45,6 +50,7 @@ CREATE TABLE `releases` (
   `released_at` DATETIME NOT NULL,
   `created_at` DATETIME NOT NULL,
   `updated_at` DATETIME NOT NULL,
+  `hash` BIGINT UNSIGNED NOT NULL,
   PRIMARY KEY (`id`),
   FOREIGN KEY (`repository_id`) REFERENCES `repositories` (`id`) ON DELETE CASCADE
 );

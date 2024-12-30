@@ -15,6 +15,10 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/gomarkdown/markdown"
+	"github.com/gomarkdown/markdown/html"
+	"github.com/gomarkdown/markdown/parser"
 )
 
 type SyncService struct {
@@ -116,7 +120,7 @@ func (s *SyncService) syncRepositoriesAndReleases(ctx context.Context, user *rep
 				return err
 			}
 
-			githubRepo, err := s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
+			githubRepo, err := s.repository.GetRepositoryByGithubID(ctx, repo.ID)
 			if err != nil && errors.Is(err, sql.ErrNoRows) {
 				slog.Info(fmt.Sprintf("No repository found, creating new repository: %s", repo.NameWithOwner))
 
@@ -126,6 +130,7 @@ func (s *SyncService) syncRepositoriesAndReleases(ctx context.Context, user *rep
 				// }
 
 				err = s.repository.CreateRepository(ctx, repository.CreateRepositoryParams{
+					GithubID:     repo.ID,
 					Name:         repo.NameWithOwner,
 					Url:          repo.URL,
 					ImageUrl:     repo.OpenGraphImageURL,
@@ -140,7 +145,7 @@ func (s *SyncService) syncRepositoriesAndReleases(ctx context.Context, user *rep
 					return err
 				}
 
-				githubRepo, err = s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
+				githubRepo, err = s.repository.GetRepositoryByGithubID(ctx, repo.ID)
 				if err != nil {
 					return err
 				}
@@ -215,11 +220,21 @@ func (s *SyncService) syncRepositoriesAndReleases(ctx context.Context, user *rep
 			}
 
 			for _, ghRelease := range repo.Releases.Nodes {
-				releaseExists := slices.ContainsFunc(releases, func(release repository.Release) bool {
+				var existingRelease *repository.Release
+				existingReleaseIdx := slices.IndexFunc(releases, func(release repository.Release) bool {
 					return release.TagName == ghRelease.TagName
 				})
 
-				if !releaseExists {
+				if existingReleaseIdx >= 0 {
+					existingRelease = &releases[existingReleaseIdx]
+				}
+
+				hash, err := hashstructure.Hash(ghRelease, hashstructure.FormatV2, nil)
+				if err != nil {
+					return err
+				}
+
+				if existingRelease == nil {
 					slog.Info(fmt.Sprintf("Release not found, creating new release for user %s and repository %s: %s", user.Username, githubRepo.Name, ghRelease.TagName))
 					author := ghRelease.Author.Name
 					if author == "" {
@@ -227,17 +242,42 @@ func (s *SyncService) syncRepositoriesAndReleases(ctx context.Context, user *rep
 					}
 
 					err = s.repository.InsertRelease(ctx, repository.InsertReleaseParams{
+						GithubID:         ghRelease.ID,
 						RepositoryID:     githubRepo.ID,
 						Name:             ghRelease.Name,
 						TagName:          ghRelease.TagName,
 						Url:              ghRelease.URL,
-						Description:      ghRelease.DescriptionHTML,
+						Description:      string(mdToHTML([]byte(ghRelease.Description))),
 						DescriptionShort: ghRelease.ShortDescriptionHTML,
 						Author:           sql.NullString{String: author, Valid: author != ""},
 						ReleasedAt:       ghRelease.PublishedAt,
 						IsPrerelease:     ghRelease.IsPrerelease,
 						CreatedAt:        time.Now(),
 						UpdatedAt:        time.Now(),
+						Hash:             hash,
+					})
+					if err != nil {
+						return err
+					}
+				} else if hash != existingRelease.Hash {
+					author := ghRelease.Author.Name
+					if author == "" {
+						author = ghRelease.Author.Login
+					}
+
+					slog.Info(fmt.Sprintf("Release hash changed (old: %d, new: %d), updating release: %s for repository %s", existingRelease.Hash, hash, ghRelease.Name, githubRepo.Name))
+					_, err = s.repository.UpdateRelease(ctx, repository.UpdateReleaseParams{
+						ID:               existingRelease.ID,
+						GithubID:         ghRelease.ID,
+						Name:             ghRelease.Name,
+						Url:              ghRelease.URL,
+						Description:      string(mdToHTML([]byte(ghRelease.Description))),
+						DescriptionShort: ghRelease.ShortDescriptionHTML,
+						Author:           sql.NullString{String: author, Valid: author != ""},
+						ReleasedAt:       ghRelease.PublishedAt,
+						IsPrerelease:     ghRelease.IsPrerelease,
+						UpdatedAt:        time.Now(),
+						Hash:             hash,
 					})
 					if err != nil {
 						return err
@@ -279,4 +319,18 @@ func (s *SyncService) syncRepositoriesAndReleases(ctx context.Context, user *rep
 	}
 
 	return nil
+}
+
+func mdToHTML(md []byte) []byte {
+	// create markdown parser with extensions
+	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
+	p := parser.NewWithExtensions(extensions)
+	doc := p.Parse(md)
+
+	// create HTML renderer with extensions
+	htmlFlags := html.CommonFlags | html.HrefTargetBlank
+	opts := html.RendererOptions{Flags: htmlFlags}
+	renderer := html.NewRenderer(opts)
+
+	return markdown.Render(doc, renderer)
 }

@@ -77,7 +77,7 @@ func (s *Server) Start() {
 	mux.Handle(path, middleware.Wrap(handler))
 
 	path, handler = apiv1connect.NewAuthServiceHandler(rpcServer)
-	mux.Handle(path, middleware.Wrap(handler))
+	mux.Handle(path, handler)
 
 	// TODO: Disable reflection when in production
 	reflector := grpcreflect.NewStaticReflector(
@@ -239,15 +239,9 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedType) {
-	userIDString := r.PathValue("userID")
-	userID, err := strconv.Atoi(userIDString)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("User ID must be an integer"))
-		return
-	}
+	userID := r.PathValue("userID")
 
-	user, err := s.repository.GetUserByID(r.Context(), int32(userID))
+	user, err := s.repository.GetUserByPublicID(r.Context(), sql.NullString{String: userID, Valid: true})
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("User not found"))

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 	apiv1 "github.com/benjasper/releases.one/internal/gen/api/v1"
 	"github.com/benjasper/releases.one/internal/repository"
 	"github.com/benjasper/releases.one/internal/server/services"
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -122,6 +124,45 @@ func (s *RpcServer) GetRepositories(ctx context.Context, req *connect.Request[ap
 	}
 
 	return res, nil
+}
+
+func (s *RpcServer) ToogleUserPublicFeed(ctx context.Context, req *connect.Request[apiv1.ToogleUserPublicFeedRequest]) (*connect.Response[apiv1.ToogleUserPublicFeedResponse], error) {
+	userIDAny := authn.GetInfo(ctx)
+	if userIDAny == nil {
+		return nil, errors.New("no user id in context")
+	}
+
+	userID, ok := userIDAny.(int)
+	if !ok {
+		return nil, errors.New("invalid user id in context")
+	}
+
+	user, err := s.repository.GetUserByID(ctx, int32(userID))
+	if err != nil {
+		return nil, errors.Join(err, errors.New("user not found"))
+	}
+
+	newPublicID := user.PublicID
+
+	if req.Msg.Enabled {
+		if !user.PublicID.Valid {
+			newPublicID = sql.NullString{String: uuid.NewString(), Valid: true}
+		}
+	} else {
+		newPublicID = sql.NullString{}
+	}
+
+	err = s.repository.UpdateUserPublicID(ctx, repository.UpdateUserPublicIDParams{
+		ID:       user.ID,
+		PublicID: newPublicID,
+	})
+	if err != nil {
+		return nil, errors.Join(err, errors.New("failed to update user"))
+	}
+
+	return connect.NewResponse(&apiv1.ToogleUserPublicFeedResponse{
+		PublicId: newPublicID.String,
+	}), nil
 }
 
 func (s *RpcServer) RefreshToken(ctx context.Context, req *connect.Request[apiv1.RefreshTokenRequest]) (*connect.Response[apiv1.RefreshTokenResponse], error) {

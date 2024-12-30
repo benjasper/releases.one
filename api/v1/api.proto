@@ -46,9 +46,17 @@ message GetRepositoriesResponse {
 	repeated TimelineEntry timeline = 1;
 }
 
+message ToogleUserPublicFeedRequest {
+	bool enabled = 1;
+}
+message ToogleUserPublicFeedResponse {
+	optional string public_id = 1;
+}
+
 service ApiService {
 	rpc Sync(SyncRequest) returns (SyncResponse);
 	rpc GetRepositories(GetRepositoriesRequest) returns (GetRepositoriesResponse);
+	rpc ToogleUserPublicFeed(ToogleUserPublicFeedRequest) returns (ToogleUserPublicFeedResponse);
 }
 
 message RefreshTokenRequest {

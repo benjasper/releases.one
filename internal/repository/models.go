@@ -10,6 +10,7 @@ import (
 )
 
 type Release struct {
+	GithubID         string
 	ID               int32
 	RepositoryID     int32
 	Name             string
@@ -22,10 +23,12 @@ type Release struct {
 	ReleasedAt       time.Time
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+	Hash             uint64
 }
 
 type Repository struct {
 	ID           int32
+	GithubID     string
 	Name         string
 	Url          string
 	Private      bool
@@ -50,4 +53,5 @@ type User struct {
 	GithubID     uint64
 	GithubToken  GitHubToken
 	LastSyncedAt time.Time
+	PublicID     sql.NullString
 }

@@ -27,12 +27,27 @@ SET
 WHERE
   id = ?;
 
+-- name: UpdateUserPublicID :exec
+UPDATE users
+SET
+  public_id = ?
+WHERE
+  id = ?;
+
 -- name: UpdateUserSyncedAt :exec
 UPDATE users
 SET
   last_synced_at = ?
 WHERE
   id = ?;
+
+-- name: GetUserByPublicID :one
+SELECT
+  *
+FROM
+  users
+WHERE
+  public_id = ?;
 
 -- name: GetUsersInNeedOfAnUpdate :many
 SELECT
@@ -42,17 +57,18 @@ FROM
 WHERE
   last_synced_at < ?;
 
--- name: GetRepositoryByName :one
+-- name: GetRepositoryByGithubID :one
 SELECT
   *
 FROM
   repositories
 WHERE
-  name = ?;
+  github_id = ?;
 
 -- name: CreateRepository :exec
 INSERT INTO
   repositories (
+    github_id,
     name,
     url,
     image_url,
@@ -64,7 +80,7 @@ INSERT INTO
     hash
   )
 VALUES
-  (?, ?, ?, ?, ?, ?, ?, ?, ?);
+  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateRepository :execresult
 UPDATE repositories
@@ -113,20 +129,38 @@ ORDER BY
 -- name: InsertRelease :exec
 INSERT INTO
   releases (
+    github_id,
     repository_id,
     name,
     author,
     tag_name,
     url,
     description,
-	description_short,
+    description_short,
+    hash,
     released_at,
     created_at,
     updated_at,
     is_prerelease
   )
 VALUES
-  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: UpdateRelease :execresult
+UPDATE releases
+SET
+  github_id = ?,
+  name = ?,
+  url = ?,
+  description = ?,
+  description_short = ?,
+  author = ?,
+  is_prerelease = ?,
+  released_at = ?,
+  updated_at = ?,
+  hash = ?
+WHERE
+  id = ?;
 
 -- name: DeleteReleasesOlderThan :execresult
 DELETE FROM releases
@@ -160,7 +194,8 @@ WHERE
   `repository_stars`.`user_id` = ?
 ORDER BY
   releases.released_at DESC
-LIMIT 100;
+LIMIT
+  100;
 
 -- name: GetReleasesForUserShortDescription :many
 SELECT
@@ -186,4 +221,5 @@ WHERE
   `repository_stars`.`user_id` = ?
 ORDER BY
   releases.released_at DESC
-LIMIT 100;
+LIMIT
+  100;

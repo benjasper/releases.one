@@ -40,6 +40,9 @@ const (
 	// ApiServiceGetRepositoriesProcedure is the fully-qualified name of the ApiService's
 	// GetRepositories RPC.
 	ApiServiceGetRepositoriesProcedure = "/api.v1.ApiService/GetRepositories"
+	// ApiServiceToogleUserPublicFeedProcedure is the fully-qualified name of the ApiService's
+	// ToogleUserPublicFeed RPC.
+	ApiServiceToogleUserPublicFeedProcedure = "/api.v1.ApiService/ToogleUserPublicFeed"
 	// AuthServiceRefreshTokenProcedure is the fully-qualified name of the AuthService's RefreshToken
 	// RPC.
 	AuthServiceRefreshTokenProcedure = "/api.v1.AuthService/RefreshToken"
@@ -47,17 +50,19 @@ const (
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
 var (
-	apiServiceServiceDescriptor               = v1.File_api_v1_api_proto.Services().ByName("ApiService")
-	apiServiceSyncMethodDescriptor            = apiServiceServiceDescriptor.Methods().ByName("Sync")
-	apiServiceGetRepositoriesMethodDescriptor = apiServiceServiceDescriptor.Methods().ByName("GetRepositories")
-	authServiceServiceDescriptor              = v1.File_api_v1_api_proto.Services().ByName("AuthService")
-	authServiceRefreshTokenMethodDescriptor   = authServiceServiceDescriptor.Methods().ByName("RefreshToken")
+	apiServiceServiceDescriptor                    = v1.File_api_v1_api_proto.Services().ByName("ApiService")
+	apiServiceSyncMethodDescriptor                 = apiServiceServiceDescriptor.Methods().ByName("Sync")
+	apiServiceGetRepositoriesMethodDescriptor      = apiServiceServiceDescriptor.Methods().ByName("GetRepositories")
+	apiServiceToogleUserPublicFeedMethodDescriptor = apiServiceServiceDescriptor.Methods().ByName("ToogleUserPublicFeed")
+	authServiceServiceDescriptor                   = v1.File_api_v1_api_proto.Services().ByName("AuthService")
+	authServiceRefreshTokenMethodDescriptor        = authServiceServiceDescriptor.Methods().ByName("RefreshToken")
 )
 
 // ApiServiceClient is a client for the api.v1.ApiService service.
 type ApiServiceClient interface {
 	Sync(context.Context, *connect.Request[v1.SyncRequest]) (*connect.Response[v1.SyncResponse], error)
 	GetRepositories(context.Context, *connect.Request[v1.GetRepositoriesRequest]) (*connect.Response[v1.GetRepositoriesResponse], error)
+	ToogleUserPublicFeed(context.Context, *connect.Request[v1.ToogleUserPublicFeedRequest]) (*connect.Response[v1.ToogleUserPublicFeedResponse], error)
 }
 
 // NewApiServiceClient constructs a client for the api.v1.ApiService service. By default, it uses
@@ -82,13 +87,20 @@ func NewApiServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(apiServiceGetRepositoriesMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		toogleUserPublicFeed: connect.NewClient[v1.ToogleUserPublicFeedRequest, v1.ToogleUserPublicFeedResponse](
+			httpClient,
+			baseURL+ApiServiceToogleUserPublicFeedProcedure,
+			connect.WithSchema(apiServiceToogleUserPublicFeedMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // apiServiceClient implements ApiServiceClient.
 type apiServiceClient struct {
-	sync            *connect.Client[v1.SyncRequest, v1.SyncResponse]
-	getRepositories *connect.Client[v1.GetRepositoriesRequest, v1.GetRepositoriesResponse]
+	sync                 *connect.Client[v1.SyncRequest, v1.SyncResponse]
+	getRepositories      *connect.Client[v1.GetRepositoriesRequest, v1.GetRepositoriesResponse]
+	toogleUserPublicFeed *connect.Client[v1.ToogleUserPublicFeedRequest, v1.ToogleUserPublicFeedResponse]
 }
 
 // Sync calls api.v1.ApiService.Sync.
@@ -101,10 +113,16 @@ func (c *apiServiceClient) GetRepositories(ctx context.Context, req *connect.Req
 	return c.getRepositories.CallUnary(ctx, req)
 }
 
+// ToogleUserPublicFeed calls api.v1.ApiService.ToogleUserPublicFeed.
+func (c *apiServiceClient) ToogleUserPublicFeed(ctx context.Context, req *connect.Request[v1.ToogleUserPublicFeedRequest]) (*connect.Response[v1.ToogleUserPublicFeedResponse], error) {
+	return c.toogleUserPublicFeed.CallUnary(ctx, req)
+}
+
 // ApiServiceHandler is an implementation of the api.v1.ApiService service.
 type ApiServiceHandler interface {
 	Sync(context.Context, *connect.Request[v1.SyncRequest]) (*connect.Response[v1.SyncResponse], error)
 	GetRepositories(context.Context, *connect.Request[v1.GetRepositoriesRequest]) (*connect.Response[v1.GetRepositoriesResponse], error)
+	ToogleUserPublicFeed(context.Context, *connect.Request[v1.ToogleUserPublicFeedRequest]) (*connect.Response[v1.ToogleUserPublicFeedResponse], error)
 }
 
 // NewApiServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -125,12 +143,20 @@ func NewApiServiceHandler(svc ApiServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(apiServiceGetRepositoriesMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	apiServiceToogleUserPublicFeedHandler := connect.NewUnaryHandler(
+		ApiServiceToogleUserPublicFeedProcedure,
+		svc.ToogleUserPublicFeed,
+		connect.WithSchema(apiServiceToogleUserPublicFeedMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/api.v1.ApiService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ApiServiceSyncProcedure:
 			apiServiceSyncHandler.ServeHTTP(w, r)
 		case ApiServiceGetRepositoriesProcedure:
 			apiServiceGetRepositoriesHandler.ServeHTTP(w, r)
+		case ApiServiceToogleUserPublicFeedProcedure:
+			apiServiceToogleUserPublicFeedHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -146,6 +172,10 @@ func (UnimplementedApiServiceHandler) Sync(context.Context, *connect.Request[v1.
 
 func (UnimplementedApiServiceHandler) GetRepositories(context.Context, *connect.Request[v1.GetRepositoriesRequest]) (*connect.Response[v1.GetRepositoriesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ApiService.GetRepositories is not implemented"))
+}
+
+func (UnimplementedApiServiceHandler) ToogleUserPublicFeed(context.Context, *connect.Request[v1.ToogleUserPublicFeedRequest]) (*connect.Response[v1.ToogleUserPublicFeedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ApiService.ToogleUserPublicFeed is not implemented"))
 }
 
 // AuthServiceClient is a client for the api.v1.AuthService service.

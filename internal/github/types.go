@@ -20,19 +20,21 @@ query {
         endCursor
       }
       nodes {
+		id
         nameWithOwner
 	    url
 		openGraphImageUrl
 	    isPrivate
         releases(first: 3, orderBy: {field: CREATED_AT, direction: DESC}) {
           nodes {
+			id
             name
             tagName
             isDraft
             isPrerelease
             publishedAt
             url
-			descriptionHTML
+			description
 			shortDescriptionHTML
 			author {
 				name
@@ -75,11 +77,13 @@ type StarredReposResponse struct {
 }
 
 type Repository struct {
+	ID                string `json:"id"`
 	NameWithOwner     string `json:"nameWithOwner"`
 	URL               string `json:"url"`
 	OpenGraphImageURL string `json:"openGraphImageUrl"`
 	Releases          struct {
 		Nodes []struct {
+			ID          string    `json:"id"`
 			PublishedAt time.Time `json:"publishedAt"`
 			Author      struct {
 				Name  string `json:"name"`
@@ -88,12 +92,12 @@ type Repository struct {
 			Name                 string `json:"name"`
 			URL                  string `json:"url"`
 			TagName              string `json:"tagName"`
-			DescriptionHTML      string `json:"descriptionHTML"`
+			Description          string `json:"description"`
 			ShortDescriptionHTML string `json:"shortDescriptionHTML"`
 			IsDraft              bool   `json:"isDraft"`
 			IsPrerelease         bool   `json:"isPrerelease"`
 		} `json:"nodes"`
-	} `json:"releases"`
+	} `json:"releases" hash:"ignore"`
 	IsPrivate bool `json:"isPrivate"`
 }
 
