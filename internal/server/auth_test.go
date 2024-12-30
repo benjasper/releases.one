@@ -24,9 +24,13 @@ func TestGenerateTokens(t *testing.T) {
 		t.Fatal("refresh token is empty")
 	}
 
-	err = validateAccessTokenClaims(accessToken, []byte("secret"))
+	userID, err := validateAccessTokenClaims(accessToken, []byte("secret"))
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if userID != 1 {
+		t.Fatal("user id does not match")
 	}
 
 	err = validateRefreshTokenClaims(refreshToken, []byte("secret"))
