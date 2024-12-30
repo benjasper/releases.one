@@ -10,17 +10,18 @@ import (
 )
 
 type Release struct {
-	ID           int32
-	RepositoryID int32
-	Name         string
-	Url          string
-	TagName      string
-	Description  string
-	Author       sql.NullString
-	IsPrerelease bool
-	ReleasedAt   time.Time
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID               int32
+	RepositoryID     int32
+	Name             string
+	Url              string
+	TagName          string
+	Description      string
+	DescriptionShort string
+	Author           sql.NullString
+	IsPrerelease     bool
+	ReleasedAt       time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 type Repository struct {
@@ -46,6 +47,7 @@ type RepositoryStar struct {
 type User struct {
 	ID           int32
 	Username     string
+	GithubID     uint64
 	GithubToken  GitHubToken
 	LastSyncedAt time.Time
 }

@@ -1,14 +1,14 @@
 version: "2"
 sql:
   - engine: "mysql"
-    queries: "pkg/repository/queries.sql"
-    schema: "pkg/repository/schema.sql"
+    queries: "internal/repository/queries.sql"
+    schema: "internal/repository/schema.sql"
     gen:
       go:
         sql_package: "database/sql"
         sql_driver: "github.com/go-sql-driver/mysql"
         package: "repository"
-        out: "pkg/repository"
+        out: "internal/repository"
         overrides:
           - column: "users.github_token"
             go_type:

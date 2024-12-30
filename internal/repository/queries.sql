@@ -1,16 +1,24 @@
--- name: GetUserByUsername :one
+-- name: GetUserByGitHubID :one
 SELECT
   *
 FROM
   users
 WHERE
-  username = ?;
+  github_id = ?;
+
+-- name: GetUserByID :one
+SELECT
+  *
+FROM
+  users
+WHERE
+  id = ?;
 
 -- name: CreateUser :execresult
 INSERT INTO
-  users (username, github_token, last_synced_at)
+  users (github_id, username, github_token, last_synced_at)
 VALUES
-  (?, ?, ?);
+  (?, ?, ?, ?);
 
 -- name: UpdateUserToken :exec
 UPDATE users
@@ -53,7 +61,7 @@ INSERT INTO
     created_at,
     updated_at,
     last_synced_at,
-	hash
+    hash
   )
 VALUES
   (?, ?, ?, ?, ?, ?, ?, ?, ?);
@@ -111,13 +119,14 @@ INSERT INTO
     tag_name,
     url,
     description,
+	description_short,
     released_at,
     created_at,
     updated_at,
     is_prerelease
   )
 VALUES
-  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: DeleteReleasesOlderThan :execresult
 DELETE FROM releases
@@ -129,7 +138,17 @@ ORDER BY
 
 -- name: GetReleasesForUser :many
 SELECT
-  `releases`.*,
+  `releases`.`id`,
+  `releases`.`repository_id`,
+  `releases`.`name`,
+  `releases`.`url`,
+  `releases`.`tag_name`,
+  `releases`.`description`,
+  `releases`.`author`,
+  `releases`.`is_prerelease`,
+  `releases`.`released_at`,
+  `releases`.`created_at`,
+  `releases`.`updated_at`,
   `repositories`.`name` AS repository_name,
   `repositories`.`image_url` AS image_url,
   `repositories`.`image_size` AS image_size
@@ -140,4 +159,31 @@ FROM
 WHERE
   `repository_stars`.`user_id` = ?
 ORDER BY
-  releases.released_at DESC;
+  releases.released_at DESC
+LIMIT 100;
+
+-- name: GetReleasesForUserShortDescription :many
+SELECT
+  `releases`.`id`,
+  `releases`.`repository_id`,
+  `releases`.`name`,
+  `releases`.`url`,
+  `releases`.`tag_name`,
+  `releases`.`description_short`,
+  `releases`.`author`,
+  `releases`.`is_prerelease`,
+  `releases`.`released_at`,
+  `releases`.`created_at`,
+  `releases`.`updated_at`,
+  `repositories`.`name` AS repository_name,
+  `repositories`.`image_url` AS image_url,
+  `repositories`.`image_size` AS image_size
+FROM
+  `releases`
+  LEFT JOIN `repositories` ON `releases`.`repository_id` = `repositories`.`id`
+  INNER JOIN `repository_stars` ON `releases`.`repository_id` = `repository_stars`.`repository_id`
+WHERE
+  `repository_stars`.`user_id` = ?
+ORDER BY
+  releases.released_at DESC
+LIMIT 100;

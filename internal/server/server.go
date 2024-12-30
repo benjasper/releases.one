@@ -9,18 +9,20 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"slices"
 	"strconv"
 	"time"
 
+	"connectrpc.com/authn"
+	"connectrpc.com/grpcreflect"
+	"github.com/benjasper/releases.one/internal/gen/api/v1/apiv1connect"
 	"github.com/benjasper/releases.one/internal/github"
 	"github.com/benjasper/releases.one/internal/repository"
-	"github.com/benjasper/releases.one/pkg/keyedmutex"
+	"github.com/benjasper/releases.one/internal/server/services"
 	"github.com/go-co-op/gocron/v2"
 	"github.com/gorilla/feeds"
-	"github.com/mitchellh/hashstructure/v2"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"golang.org/x/oauth2"
-	"golang.org/x/sync/errgroup"
 )
 
 type FeedType string
@@ -32,34 +34,77 @@ var (
 
 type Server struct {
 	repository        *repository.Queries
+	syncService       *services.SyncService
 	githubOAuthConfig *oauth2.Config
-	repositoryMutex   *keyedmutex.KeyedMutex
-	userMutex         *keyedmutex.KeyedMutex
+	jwtSecret         []byte
 }
 
 func NewServer(repository *repository.Queries, githubOAuthConfig *oauth2.Config) *Server {
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET must be set")
+	}
+
 	return &Server{
 		repository:        repository,
 		githubOAuthConfig: githubOAuthConfig,
-		repositoryMutex:   keyedmutex.NewKeyedMutex(),
-		userMutex:         keyedmutex.NewKeyedMutex(),
+		syncService:       services.NewSyncService(repository, githubOAuthConfig),
+		jwtSecret:         []byte(jwtSecret),
 	}
 }
 
 // Start runs the server
 func (s *Server) Start() {
+	rpcServer := NewRpcServer(s.repository, s.syncService, s.jwtSecret)
 	mux := http.NewServeMux()
 
+	middleware := authn.NewMiddleware(func(ctx context.Context, req *http.Request) (any, error) {
+		rawToken, ok := authn.BearerToken(req)
+		if !ok {
+			return nil, errors.New("missing authorization header")
+		}
+
+		userID, err := validateAccessTokenClaims(rawToken, s.jwtSecret)
+		if err != nil {
+			slog.Error(fmt.Sprintf("Invalid access token: %s", err.Error()))
+			return nil, errors.New("invalid token")
+		}
+
+		return userID, nil
+	})
+
+	path, handler := apiv1connect.NewApiServiceHandler(rpcServer)
+	mux.Handle(path, middleware.Wrap(handler))
+
+	path, handler = apiv1connect.NewAuthServiceHandler(rpcServer)
+	mux.Handle(path, middleware.Wrap(handler))
+
+	// TODO: Disable reflection when in production
+	reflector := grpcreflect.NewStaticReflector(
+		apiv1connect.ApiServiceName,
+		apiv1connect.AuthServiceName,
+	)
+	mux.Handle(grpcreflect.NewHandlerV1(reflector))
+	// Many tools still expect the older version of the server reflection API, so
+	// most servers should mount both handlers.
+	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
+
 	mux.HandleFunc("/login/github", s.GetLoginWithGithub)
-	mux.HandleFunc("/trigger/{username}", s.PostTriggerSync)
 	mux.HandleFunc("/github", s.GetLoginWithGithubCallback)
-	mux.HandleFunc("/atom/{username}", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/atom/{userID}", func(w http.ResponseWriter, r *http.Request) {
 		s.GetFeed(w, r, AtomFeedType)
 	})
-	mux.HandleFunc("/rss/{username}", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/rss/{userID}", func(w http.ResponseWriter, r *http.Request) {
 		s.GetFeed(w, r, RssFeedType)
 	})
 
+	s.ScheduleJobs()
+
+	slog.Info("Starting server on port 80")
+	http.ListenAndServe(":80", h2c.NewHandler(mux, &http2.Server{}))
+}
+
+func (s *Server) ScheduleJobs() {
 	scheduler, err := gocron.NewScheduler()
 	if err != nil {
 		log.Fatal(err)
@@ -84,7 +129,7 @@ func (s *Server) Start() {
 		for _, user := range users {
 			ctx, cancel := context.WithTimeoutCause(context.Background(), time.Minute*5, errors.New("syncing user took too long"))
 			defer cancel()
-			err = s.syncUser(ctx, &user)
+			err = s.syncService.SyncUser(ctx, &user)
 			if err != nil {
 				slog.Info(fmt.Sprintf("Failed to sync user: %s", err.Error()))
 				return
@@ -95,9 +140,6 @@ func (s *Server) Start() {
 		log.Fatal(err)
 	}
 	scheduler.Start()
-
-	slog.Info("Starting server on port 80")
-	http.ListenAndServe(":80", mux)
 }
 
 func (s *Server) GetLoginWithGithub(w http.ResponseWriter, r *http.Request) {
@@ -131,20 +173,21 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	user, err := s.repository.GetUserByUsername(r.Context(), githubUser.Login)
+	user, err := s.repository.GetUserByGitHubID(r.Context(), githubUser.ID)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		slog.Info("No user found, creating new user")
 		_, err = s.repository.CreateUser(r.Context(), repository.CreateUserParams{
+			GithubID:     githubUser.ID,
 			Username:     githubUser.Login,
 			GithubToken:  repository.GitHubToken(*token),
-			LastSyncedAt: time.Now(),
+			LastSyncedAt: time.UnixMicro(0),
 		})
 		if err != nil {
 			http.Error(w, "Failed to create user: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		user, err = s.repository.GetUserByUsername(r.Context(), githubUser.Login)
+		user, err = s.repository.GetUserByGitHubID(r.Context(), githubUser.ID)
 		if err != nil {
 			http.Error(w, "Failed to retrieve user: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -164,288 +207,47 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err = s.syncUser(r.Context(), &user)
+	accessToken, refreshToken, err := GenerateTokens(&user, s.jwtSecret)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to sync user: %s", err.Error()))
-		http.Error(w, "Failed to sync user: "+err.Error(), http.StatusInternalServerError)
+		slog.Error(fmt.Sprintf("Failed to generate tokens: %s", err.Error()))
+		http.Error(w, "Failed to generate tokens", http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-}
-
-func (s *Server) PostTriggerSync(w http.ResponseWriter, r *http.Request) {
-	username := r.PathValue("username")
-	if username == "" {
-		http.Error(w, "Must provide username", http.StatusBadRequest)
-		return
-	}
-
-	user, err := s.repository.GetUserByUsername(r.Context(), username)
-	if err != nil {
-		http.Error(w, "Failed to retrieve user: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	err = s.syncUser(context.Background(), &user)
-	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to sync user: %s", err.Error()))
-		http.Error(w, "Failed to sync user: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-func (s *Server) syncUser(ctx context.Context, user *repository.User) error {
-	s.userMutex.Lock(user.Username)
-	defer s.userMutex.Unlock(user.Username)
-
-	slog.Info(fmt.Sprintf("Syncing user: %s", user.Username))
-
-	syncStartedAt := time.Now()
-
-	githubService, newToken, err := github.NewGitHubService(ctx, s.githubOAuthConfig, (*oauth2.Token)(&user.GithubToken))
-	if err != nil {
-		return err
-	}
-
-	if newToken != nil {
-		slog.Info(fmt.Sprintf("Saving refreshed token for user: %s", user.Username))
-		err = s.repository.UpdateUserToken(ctx, repository.UpdateUserTokenParams{
-			GithubToken: repository.GitHubToken(*newToken),
-			ID:          user.ID,
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	err = s.syncRepositoriesAndReleases(ctx, user, githubService)
-	if err != nil {
-		return err
-	}
-
-	result, err := s.repository.DeleteRepositoryStarsUpdatedBefore(ctx, repository.DeleteRepositoryStarsUpdatedBeforeParams{
-		UpdatedAt: syncStartedAt,
-		UserID:    user.ID,
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    accessToken,
+		HttpOnly: true,
+		Secure:   true,
+		Expires:  time.Now().Add(time.Hour * 24 * 365),
 	})
-	if err != nil {
-		return err
-	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	slog.Info(fmt.Sprintf("Deleted %d repository stars for user: %s", rowsAffected, user.Username))
-
-	err = s.repository.UpdateUserSyncedAt(ctx, repository.UpdateUserSyncedAtParams{
-		ID:           user.ID,
-		LastSyncedAt: syncStartedAt,
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshToken,
+		HttpOnly: true,
+		Secure:   true,
+		Expires:  time.Now().Add(time.Hour * 24 * 365),
 	})
-	if err != nil {
-		return err
+
+	loginSuccessRedirectURL := os.Getenv("LOGIN_SUCCESS_REDIRECT_URL")
+	if loginSuccessRedirectURL == "" {
+		loginSuccessRedirectURL = "/"
 	}
 
-	slog.Info(fmt.Sprintf("Synced user: %s", user.Username))
-
-	return nil
-}
-
-func (s *Server) syncRepositoriesAndReleases(ctx context.Context, user *repository.User, githubService *github.GitHubService) error {
-	group, ctx := errgroup.WithContext(ctx)
-	group.SetLimit(10)
-
-	for repo, err := range githubService.GetStarredRepos(ctx) {
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				slog.Error(fmt.Sprintf("Error syncing repositories (context canceled): %s", context.Cause(ctx)))
-			}
-			return err
-		}
-
-		group.Go(func() error {
-			// Lock the syncing of this repository by name
-			s.repositoryMutex.Lock(repo.NameWithOwner)
-			defer s.repositoryMutex.Unlock(repo.NameWithOwner)
-
-			// Ignore private repositories for now
-			if repo.IsPrivate {
-				return nil
-			}
-
-			hash, err := hashstructure.Hash(repo, hashstructure.FormatV2, nil)
-			if err != nil {
-				return err
-			}
-
-			githubRepo, err := s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
-			if err != nil && errors.Is(err, sql.ErrNoRows) {
-				slog.Info(fmt.Sprintf("No repository found, creating new repository: %s", repo.NameWithOwner))
-
-				// openGraphImageSize, err := githubService.GetImageSize(ctx, repo.OpenGraphImageURL)
-				// if err != nil {
-				// 	return err
-				// }
-
-				err = s.repository.CreateRepository(ctx, repository.CreateRepositoryParams{
-					Name:         repo.NameWithOwner,
-					Url:          repo.URL,
-					ImageUrl:     repo.OpenGraphImageURL,
-					ImageSize:    0,
-					Private:      repo.IsPrivate,
-					CreatedAt:    time.Now(),
-					UpdatedAt:    time.Now(),
-					LastSyncedAt: time.Now(),
-					Hash:         hash,
-				})
-				if err != nil {
-					return err
-				}
-
-				githubRepo, err = s.repository.GetRepositoryByName(ctx, repo.NameWithOwner)
-				if err != nil {
-					return err
-				}
-			} else if err != nil {
-				return err
-			} else {
-				// In case the image changed, refetch the image size
-				// if repo.OpenGraphImageURL != githubRepo.ImageUrl {
-				// 	openGraphImageSize, err := githubService.GetImageSize(ctx, repo.OpenGraphImageURL)
-				// 	if err != nil {
-				// 		return err
-				// 	}
-				//
-				// 	githubRepo.ImageUrl = repo.OpenGraphImageURL
-				// 	githubRepo.ImageSize = int32(openGraphImageSize)
-				// }
-
-				// Check hash
-				if hash != githubRepo.Hash {
-					githubRepo.Hash = hash
-					githubRepo.UpdatedAt = time.Now()
-
-					slog.Info(fmt.Sprintf("Repository hash changed, updating repository: %s", repo.NameWithOwner))
-					_, err = s.repository.UpdateRepository(ctx, repository.UpdateRepositoryParams{
-						ID:           githubRepo.ID,
-						Url:          githubRepo.Url,
-						ImageUrl:     githubRepo.ImageUrl,
-						ImageSize:    githubRepo.ImageSize,
-						Private:      githubRepo.Private,
-						CreatedAt:    githubRepo.CreatedAt,
-						UpdatedAt:    githubRepo.UpdatedAt,
-						LastSyncedAt: githubRepo.LastSyncedAt,
-						Hash:         githubRepo.Hash,
-					})
-					if err != nil {
-						return err
-					}
-				}
-			}
-
-			// Now check if the repository has already been starred by the user
-			result, err := s.repository.UpdateRepositoryStar(ctx, repository.UpdateRepositoryStarParams{
-				UpdatedAt:    time.Now(),
-				RepositoryID: githubRepo.ID,
-				UserID:       user.ID,
-			})
-			if err != nil && errors.Is(err, sql.ErrNoRows) {
-			} else if err != nil {
-				return err
-			}
-			rowsAffected, err := result.RowsAffected()
-			if err != nil {
-				return err
-			}
-
-			if rowsAffected == 0 {
-				slog.Info(fmt.Sprintf("No repository star found, creating new repository star: %s", repo.NameWithOwner))
-				err = s.repository.InsertRepositoryStar(ctx, repository.InsertRepositoryStarParams{
-					RepositoryID: githubRepo.ID,
-					UserID:       user.ID,
-					CreatedAt:    time.Now(),
-					UpdatedAt:    time.Now(),
-				})
-				if err != nil {
-					return err
-				}
-			}
-
-			releases, err := s.repository.GetReleases(ctx, githubRepo.ID)
-			if err != nil {
-				return err
-			}
-
-			for _, ghRelease := range repo.Releases.Nodes {
-				releaseExists := slices.ContainsFunc(releases, func(release repository.Release) bool {
-					return release.TagName == ghRelease.TagName
-				})
-
-				if !releaseExists {
-					slog.Info(fmt.Sprintf("Release not found, creating new release for user %s and repository %s: %s", user.Username, githubRepo.Name, ghRelease.TagName))
-					author := ghRelease.Author.Name
-					if author == "" {
-						author = ghRelease.Author.Login
-					}
-
-					err = s.repository.InsertRelease(ctx, repository.InsertReleaseParams{
-						RepositoryID: githubRepo.ID,
-						Name:         ghRelease.Name,
-						TagName:      ghRelease.TagName,
-						Url:          ghRelease.URL,
-						Description:  ghRelease.DescriptionHTML,
-						Author:       sql.NullString{String: author, Valid: author != ""},
-						ReleasedAt:   ghRelease.PublishedAt,
-						IsPrerelease: ghRelease.IsPrerelease,
-						CreatedAt:    time.Now(),
-						UpdatedAt:    time.Now(),
-					})
-					if err != nil {
-						return err
-					}
-				}
-			}
-
-			// Find the date of the 10th most recent release
-			var oldestRelease *repository.Release
-			if len(releases) > 10 {
-				oldestRelease = &releases[len(releases)-10]
-
-				result, err = s.repository.DeleteReleasesOlderThan(ctx, repository.DeleteReleasesOlderThanParams{
-					ReleasedAt:   oldestRelease.ReleasedAt,
-					RepositoryID: githubRepo.ID,
-				})
-				if err != nil {
-					return err
-				}
-
-				rowsAffected, err := result.RowsAffected()
-				if err != nil {
-					return err
-				}
-				slog.Info(fmt.Sprintf("Deleted %d releases older than %s for repository: %s", rowsAffected, oldestRelease.ReleasedAt.String(), repo.NameWithOwner))
-			}
-
-			return nil
-		})
-	}
-
-	err := group.Wait()
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			slog.Error(fmt.Sprintf("Error syncing repositories (context canceled): %s", context.Cause(ctx)))
-		}
-
-		return err
-	}
-
-	return nil
+	http.Redirect(w, r, loginSuccessRedirectURL, http.StatusTemporaryRedirect)
 }
 
 func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedType) {
-	username := r.PathValue("username")
+	userIDString := r.PathValue("userID")
+	userID, err := strconv.Atoi(userIDString)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("User ID must be an integer"))
+		return
+	}
 
-	user, err := s.repository.GetUserByUsername(r.Context(), username)
+	user, err := s.repository.GetUserByID(r.Context(), int32(userID))
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("User not found"))

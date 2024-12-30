@@ -1,10 +1,11 @@
 CREATE TABLE `users` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `username` VARCHAR(255) NOT NULL,
+  `github_id` BIGINT UNSIGNED NOT NULL,
   `github_token` JSON NOT NULL,
   `last_synced_at` DATETIME NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `username` (`username`)
+  UNIQUE INDEX `github_id` (`github_id`)
 );
 
 CREATE TABLE `repositories` (
@@ -38,6 +39,7 @@ CREATE TABLE `releases` (
   `url` VARCHAR(255) NOT NULL,
   `tag_name` VARCHAR(255) NOT NULL,
   `description` LONGTEXT NOT NULL,
+  `description_short` TEXT NOT NULL,
   `author` VARCHAR(255),
   `is_prerelease` BOOLEAN NOT NULL,
   `released_at` DATETIME NOT NULL,

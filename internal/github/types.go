@@ -33,6 +33,7 @@ query {
             publishedAt
             url
 			descriptionHTML
+			shortDescriptionHTML
 			author {
 				name
 				login
@@ -84,12 +85,13 @@ type Repository struct {
 				Name  string `json:"name"`
 				Login string `json:"login"`
 			} `json:"author"`
-			Name            string `json:"name"`
-			URL             string `json:"url"`
-			TagName         string `json:"tagName"`
-			DescriptionHTML string `json:"descriptionHTML"`
-			IsDraft         bool   `json:"isDraft"`
-			IsPrerelease    bool   `json:"isPrerelease"`
+			Name                 string `json:"name"`
+			URL                  string `json:"url"`
+			TagName              string `json:"tagName"`
+			DescriptionHTML      string `json:"descriptionHTML"`
+			ShortDescriptionHTML string `json:"shortDescriptionHTML"`
+			IsDraft              bool   `json:"isDraft"`
+			IsPrerelease         bool   `json:"isPrerelease"`
 		} `json:"nodes"`
 	} `json:"releases"`
 	IsPrivate bool `json:"isPrivate"`
@@ -127,17 +129,17 @@ type UserData struct {
 		PrivateRepos  int    `json:"private_repos"`
 		Collaborators int    `json:"collaborators"`
 	} `json:"plan"`
-	PrivateGists            int  `json:"private_gists"`
-	PublicGists             int  `json:"public_gists"`
-	Followers               int  `json:"followers"`
-	Following               int  `json:"following"`
-	ID                      int  `json:"id"`
-	TotalPrivateRepos       int  `json:"total_private_repos"`
-	OwnedPrivateRepos       int  `json:"owned_private_repos"`
-	DiskUsage               int  `json:"disk_usage"`
-	Collaborators           int  `json:"collaborators"`
-	PublicRepos             int  `json:"public_repos"`
-	Hireable                bool `json:"hireable"`
-	TwoFactorAuthentication bool `json:"two_factor_authentication"`
-	SiteAdmin               bool `json:"site_admin"`
+	PrivateGists            int    `json:"private_gists"`
+	PublicGists             int    `json:"public_gists"`
+	Followers               int    `json:"followers"`
+	Following               int    `json:"following"`
+	ID                      uint64 `json:"id"`
+	TotalPrivateRepos       int    `json:"total_private_repos"`
+	OwnedPrivateRepos       int    `json:"owned_private_repos"`
+	DiskUsage               int    `json:"disk_usage"`
+	Collaborators           int    `json:"collaborators"`
+	PublicRepos             int    `json:"public_repos"`
+	Hireable                bool   `json:"hireable"`
+	TwoFactorAuthentication bool   `json:"two_factor_authentication"`
+	SiteAdmin               bool   `json:"site_admin"`
 }

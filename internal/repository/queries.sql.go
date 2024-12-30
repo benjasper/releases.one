@@ -22,7 +22,7 @@ INSERT INTO
     created_at,
     updated_at,
     last_synced_at,
-	hash
+    hash
   )
 VALUES
   (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -57,19 +57,25 @@ func (q *Queries) CreateRepository(ctx context.Context, arg CreateRepositoryPara
 
 const createUser = `-- name: CreateUser :execresult
 INSERT INTO
-  users (username, github_token, last_synced_at)
+  users (github_id, username, github_token, last_synced_at)
 VALUES
-  (?, ?, ?)
+  (?, ?, ?, ?)
 `
 
 type CreateUserParams struct {
+	GithubID     uint64
 	Username     string
 	GithubToken  GitHubToken
 	LastSyncedAt time.Time
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (sql.Result, error) {
-	return q.db.ExecContext(ctx, createUser, arg.Username, arg.GithubToken, arg.LastSyncedAt)
+	return q.db.ExecContext(ctx, createUser,
+		arg.GithubID,
+		arg.Username,
+		arg.GithubToken,
+		arg.LastSyncedAt,
+	)
 }
 
 const deleteReleasesOlderThan = `-- name: DeleteReleasesOlderThan :execresult
@@ -108,7 +114,7 @@ func (q *Queries) DeleteRepositoryStarsUpdatedBefore(ctx context.Context, arg De
 
 const getReleases = `-- name: GetReleases :many
 SELECT
-  id, repository_id, name, url, tag_name, description, author, is_prerelease, released_at, created_at, updated_at
+  id, repository_id, name, url, tag_name, description, description_short, author, is_prerelease, released_at, created_at, updated_at
 FROM
   releases
 WHERE
@@ -133,6 +139,7 @@ func (q *Queries) GetReleases(ctx context.Context, repositoryID int32) ([]Releas
 			&i.Url,
 			&i.TagName,
 			&i.Description,
+			&i.DescriptionShort,
 			&i.Author,
 			&i.IsPrerelease,
 			&i.ReleasedAt,
@@ -154,7 +161,17 @@ func (q *Queries) GetReleases(ctx context.Context, repositoryID int32) ([]Releas
 
 const getReleasesForUser = `-- name: GetReleasesForUser :many
 SELECT
-  releases.id, releases.repository_id, releases.name, releases.url, releases.tag_name, releases.description, releases.author, releases.is_prerelease, releases.released_at, releases.created_at, releases.updated_at,
+  ` + "`" + `releases` + "`" + `.` + "`" + `id` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `name` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `url` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `tag_name` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `description` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `author` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `is_prerelease` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `released_at` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `created_at` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `updated_at` + "`" + `,
   ` + "`" + `repositories` + "`" + `.` + "`" + `name` + "`" + ` AS repository_name,
   ` + "`" + `repositories` + "`" + `.` + "`" + `image_url` + "`" + ` AS image_url,
   ` + "`" + `repositories` + "`" + `.` + "`" + `image_size` + "`" + ` AS image_size
@@ -166,6 +183,7 @@ WHERE
   ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ?
 ORDER BY
   releases.released_at DESC
+LIMIT 100
 `
 
 type GetReleasesForUserRow struct {
@@ -223,6 +241,88 @@ func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetRe
 	return items, nil
 }
 
+const getReleasesForUserShortDescription = `-- name: GetReleasesForUserShortDescription :many
+SELECT
+  ` + "`" + `releases` + "`" + `.` + "`" + `id` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `name` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `url` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `tag_name` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `description_short` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `author` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `is_prerelease` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `released_at` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `created_at` + "`" + `,
+  ` + "`" + `releases` + "`" + `.` + "`" + `updated_at` + "`" + `,
+  ` + "`" + `repositories` + "`" + `.` + "`" + `name` + "`" + ` AS repository_name,
+  ` + "`" + `repositories` + "`" + `.` + "`" + `image_url` + "`" + ` AS image_url,
+  ` + "`" + `repositories` + "`" + `.` + "`" + `image_size` + "`" + ` AS image_size
+FROM
+  ` + "`" + `releases` + "`" + `
+  LEFT JOIN ` + "`" + `repositories` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repositories` + "`" + `.` + "`" + `id` + "`" + `
+  INNER JOIN ` + "`" + `repository_stars` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repository_stars` + "`" + `.` + "`" + `repository_id` + "`" + `
+WHERE
+  ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ?
+ORDER BY
+  releases.released_at DESC
+LIMIT 100
+`
+
+type GetReleasesForUserShortDescriptionRow struct {
+	ID               int32
+	RepositoryID     int32
+	Name             string
+	Url              string
+	TagName          string
+	DescriptionShort string
+	Author           sql.NullString
+	IsPrerelease     bool
+	ReleasedAt       time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	RepositoryName   sql.NullString
+	ImageUrl         sql.NullString
+	ImageSize        sql.NullInt32
+}
+
+func (q *Queries) GetReleasesForUserShortDescription(ctx context.Context, userID int32) ([]GetReleasesForUserShortDescriptionRow, error) {
+	rows, err := q.db.QueryContext(ctx, getReleasesForUserShortDescription, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetReleasesForUserShortDescriptionRow
+	for rows.Next() {
+		var i GetReleasesForUserShortDescriptionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RepositoryID,
+			&i.Name,
+			&i.Url,
+			&i.TagName,
+			&i.DescriptionShort,
+			&i.Author,
+			&i.IsPrerelease,
+			&i.ReleasedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.RepositoryName,
+			&i.ImageUrl,
+			&i.ImageSize,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getRepositoryByName = `-- name: GetRepositoryByName :one
 SELECT
   id, name, url, private, created_at, updated_at, last_synced_at, image_url, image_size, hash
@@ -250,21 +350,44 @@ func (q *Queries) GetRepositoryByName(ctx context.Context, name string) (Reposit
 	return i, err
 }
 
-const getUserByUsername = `-- name: GetUserByUsername :one
+const getUserByGitHubID = `-- name: GetUserByGitHubID :one
 SELECT
-  id, username, github_token, last_synced_at
+  id, username, github_id, github_token, last_synced_at
 FROM
   users
 WHERE
-  username = ?
+  github_id = ?
 `
 
-func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
+func (q *Queries) GetUserByGitHubID(ctx context.Context, githubID uint64) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByGitHubID, githubID)
 	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
+		&i.GithubID,
+		&i.GithubToken,
+		&i.LastSyncedAt,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT
+  id, username, github_id, github_token, last_synced_at
+FROM
+  users
+WHERE
+  id = ?
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.GithubID,
 		&i.GithubToken,
 		&i.LastSyncedAt,
 	)
@@ -273,7 +396,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 
 const getUsersInNeedOfAnUpdate = `-- name: GetUsersInNeedOfAnUpdate :many
 SELECT
-  id, username, github_token, last_synced_at
+  id, username, github_id, github_token, last_synced_at
 FROM
   users
 WHERE
@@ -292,6 +415,7 @@ func (q *Queries) GetUsersInNeedOfAnUpdate(ctx context.Context, lastSyncedAt tim
 		if err := rows.Scan(
 			&i.ID,
 			&i.Username,
+			&i.GithubID,
 			&i.GithubToken,
 			&i.LastSyncedAt,
 		); err != nil {
@@ -317,26 +441,28 @@ INSERT INTO
     tag_name,
     url,
     description,
+	description_short,
     released_at,
     created_at,
     updated_at,
     is_prerelease
   )
 VALUES
-  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertReleaseParams struct {
-	RepositoryID int32
-	Name         string
-	Author       sql.NullString
-	TagName      string
-	Url          string
-	Description  string
-	ReleasedAt   time.Time
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	IsPrerelease bool
+	RepositoryID     int32
+	Name             string
+	Author           sql.NullString
+	TagName          string
+	Url              string
+	Description      string
+	DescriptionShort string
+	ReleasedAt       time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	IsPrerelease     bool
 }
 
 func (q *Queries) InsertRelease(ctx context.Context, arg InsertReleaseParams) error {
@@ -347,6 +473,7 @@ func (q *Queries) InsertRelease(ctx context.Context, arg InsertReleaseParams) er
 		arg.TagName,
 		arg.Url,
 		arg.Description,
+		arg.DescriptionShort,
 		arg.ReleasedAt,
 		arg.CreatedAt,
 		arg.UpdatedAt,
