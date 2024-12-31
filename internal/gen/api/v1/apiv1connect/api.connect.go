@@ -43,6 +43,8 @@ const (
 	// ApiServiceToogleUserPublicFeedProcedure is the fully-qualified name of the ApiService's
 	// ToogleUserPublicFeed RPC.
 	ApiServiceToogleUserPublicFeedProcedure = "/api.v1.ApiService/ToogleUserPublicFeed"
+	// ApiServiceGetMyUserProcedure is the fully-qualified name of the ApiService's GetMyUser RPC.
+	ApiServiceGetMyUserProcedure = "/api.v1.ApiService/GetMyUser"
 	// AuthServiceRefreshTokenProcedure is the fully-qualified name of the AuthService's RefreshToken
 	// RPC.
 	AuthServiceRefreshTokenProcedure = "/api.v1.AuthService/RefreshToken"
@@ -54,6 +56,7 @@ var (
 	apiServiceSyncMethodDescriptor                 = apiServiceServiceDescriptor.Methods().ByName("Sync")
 	apiServiceGetRepositoriesMethodDescriptor      = apiServiceServiceDescriptor.Methods().ByName("GetRepositories")
 	apiServiceToogleUserPublicFeedMethodDescriptor = apiServiceServiceDescriptor.Methods().ByName("ToogleUserPublicFeed")
+	apiServiceGetMyUserMethodDescriptor            = apiServiceServiceDescriptor.Methods().ByName("GetMyUser")
 	authServiceServiceDescriptor                   = v1.File_api_v1_api_proto.Services().ByName("AuthService")
 	authServiceRefreshTokenMethodDescriptor        = authServiceServiceDescriptor.Methods().ByName("RefreshToken")
 )
@@ -63,6 +66,7 @@ type ApiServiceClient interface {
 	Sync(context.Context, *connect.Request[v1.SyncRequest]) (*connect.Response[v1.SyncResponse], error)
 	GetRepositories(context.Context, *connect.Request[v1.GetRepositoriesRequest]) (*connect.Response[v1.GetRepositoriesResponse], error)
 	ToogleUserPublicFeed(context.Context, *connect.Request[v1.ToogleUserPublicFeedRequest]) (*connect.Response[v1.ToogleUserPublicFeedResponse], error)
+	GetMyUser(context.Context, *connect.Request[v1.GetMyUserRequest]) (*connect.Response[v1.GetMyUserResponse], error)
 }
 
 // NewApiServiceClient constructs a client for the api.v1.ApiService service. By default, it uses
@@ -93,6 +97,12 @@ func NewApiServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(apiServiceToogleUserPublicFeedMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		getMyUser: connect.NewClient[v1.GetMyUserRequest, v1.GetMyUserResponse](
+			httpClient,
+			baseURL+ApiServiceGetMyUserProcedure,
+			connect.WithSchema(apiServiceGetMyUserMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -101,6 +111,7 @@ type apiServiceClient struct {
 	sync                 *connect.Client[v1.SyncRequest, v1.SyncResponse]
 	getRepositories      *connect.Client[v1.GetRepositoriesRequest, v1.GetRepositoriesResponse]
 	toogleUserPublicFeed *connect.Client[v1.ToogleUserPublicFeedRequest, v1.ToogleUserPublicFeedResponse]
+	getMyUser            *connect.Client[v1.GetMyUserRequest, v1.GetMyUserResponse]
 }
 
 // Sync calls api.v1.ApiService.Sync.
@@ -118,11 +129,17 @@ func (c *apiServiceClient) ToogleUserPublicFeed(ctx context.Context, req *connec
 	return c.toogleUserPublicFeed.CallUnary(ctx, req)
 }
 
+// GetMyUser calls api.v1.ApiService.GetMyUser.
+func (c *apiServiceClient) GetMyUser(ctx context.Context, req *connect.Request[v1.GetMyUserRequest]) (*connect.Response[v1.GetMyUserResponse], error) {
+	return c.getMyUser.CallUnary(ctx, req)
+}
+
 // ApiServiceHandler is an implementation of the api.v1.ApiService service.
 type ApiServiceHandler interface {
 	Sync(context.Context, *connect.Request[v1.SyncRequest]) (*connect.Response[v1.SyncResponse], error)
 	GetRepositories(context.Context, *connect.Request[v1.GetRepositoriesRequest]) (*connect.Response[v1.GetRepositoriesResponse], error)
 	ToogleUserPublicFeed(context.Context, *connect.Request[v1.ToogleUserPublicFeedRequest]) (*connect.Response[v1.ToogleUserPublicFeedResponse], error)
+	GetMyUser(context.Context, *connect.Request[v1.GetMyUserRequest]) (*connect.Response[v1.GetMyUserResponse], error)
 }
 
 // NewApiServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -149,6 +166,12 @@ func NewApiServiceHandler(svc ApiServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(apiServiceToogleUserPublicFeedMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	apiServiceGetMyUserHandler := connect.NewUnaryHandler(
+		ApiServiceGetMyUserProcedure,
+		svc.GetMyUser,
+		connect.WithSchema(apiServiceGetMyUserMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/api.v1.ApiService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ApiServiceSyncProcedure:
@@ -157,6 +180,8 @@ func NewApiServiceHandler(svc ApiServiceHandler, opts ...connect.HandlerOption) 
 			apiServiceGetRepositoriesHandler.ServeHTTP(w, r)
 		case ApiServiceToogleUserPublicFeedProcedure:
 			apiServiceToogleUserPublicFeedHandler.ServeHTTP(w, r)
+		case ApiServiceGetMyUserProcedure:
+			apiServiceGetMyUserHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -176,6 +201,10 @@ func (UnimplementedApiServiceHandler) GetRepositories(context.Context, *connect.
 
 func (UnimplementedApiServiceHandler) ToogleUserPublicFeed(context.Context, *connect.Request[v1.ToogleUserPublicFeedRequest]) (*connect.Response[v1.ToogleUserPublicFeedResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ApiService.ToogleUserPublicFeed is not implemented"))
+}
+
+func (UnimplementedApiServiceHandler) GetMyUser(context.Context, *connect.Request[v1.GetMyUserRequest]) (*connect.Response[v1.GetMyUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ApiService.GetMyUser is not implemented"))
 }
 
 // AuthServiceClient is a client for the api.v1.AuthService service.

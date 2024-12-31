@@ -19,6 +19,7 @@ import (
 	"github.com/benjasper/releases.one/internal/repository"
 	"github.com/benjasper/releases.one/internal/server/services"
 	"github.com/go-co-op/gocron/v2"
+	"github.com/google/uuid"
 	"github.com/gorilla/feeds"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -181,6 +182,8 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 			Username:     githubUser.Login,
 			GithubToken:  repository.GitHubToken(*token),
 			LastSyncedAt: time.UnixMicro(0),
+			IsPublic:     false,
+			PublicID:     uuid.NewString(),
 		})
 		if err != nil {
 			http.Error(w, "Failed to create user: "+err.Error(), http.StatusInternalServerError)
@@ -241,10 +244,15 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedType) {
 	userID := r.PathValue("userID")
 
-	user, err := s.repository.GetUserByPublicID(r.Context(), sql.NullString{String: userID, Valid: true})
+	user, err := s.repository.GetUserByPublicID(r.Context(), userID)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("User not found"))
+		return
+	}
+
+	if !user.IsPublic {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -263,12 +271,12 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedTy
 
 	for _, release := range releases {
 		feedItem := &feeds.Item{
-			Id:      fmt.Sprintf("releases.one-%s-%s", release.RepositoryGithubID.String, release.GithubID),
-			Title:   fmt.Sprintf("%s: %s", release.RepositoryName.String, release.Name),
-			Link:    &feeds.Link{Href: release.Url},
+			Id:          fmt.Sprintf("releases.one-%s-%s", release.RepositoryGithubID.String, release.GithubID),
+			Title:       fmt.Sprintf("%s: %s", release.RepositoryName.String, release.Name),
+			Link:        &feeds.Link{Href: release.Url},
 			Description: release.DescriptionShort,
-			Content: release.Description,
-			Created: release.ReleasedAt,
+			Content:     release.Description,
+			Created:     release.ReleasedAt,
 		}
 
 		if release.ImageUrl.Valid {

@@ -60,9 +60,16 @@ func (q *Queries) CreateRepository(ctx context.Context, arg CreateRepositoryPara
 
 const createUser = `-- name: CreateUser :execresult
 INSERT INTO
-  users (github_id, username, github_token, last_synced_at)
+  users (
+    github_id,
+    username,
+    github_token,
+    last_synced_at,
+    is_public,
+    public_id
+  )
 VALUES
-  (?, ?, ?, ?)
+  (?, ?, ?, ?, ?, ?)
 `
 
 type CreateUserParams struct {
@@ -70,6 +77,8 @@ type CreateUserParams struct {
 	Username     string
 	GithubToken  GitHubToken
 	LastSyncedAt time.Time
+	IsPublic     bool
+	PublicID     string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (sql.Result, error) {
@@ -78,6 +87,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (sql.Res
 		arg.Username,
 		arg.GithubToken,
 		arg.LastSyncedAt,
+		arg.IsPublic,
+		arg.PublicID,
 	)
 }
 
@@ -187,8 +198,10 @@ FROM
   ` + "`" + `releases` + "`" + `
   LEFT JOIN ` + "`" + `repositories` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repositories` + "`" + `.` + "`" + `id` + "`" + `
   INNER JOIN ` + "`" + `repository_stars` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repository_stars` + "`" + `.` + "`" + `repository_id` + "`" + `
+  INNER JOIN ` + "`" + `users` + "`" + ` ON ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ` + "`" + `users` + "`" + `.` + "`" + `id` + "`" + `
 WHERE
   ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ?
+  AND ` + "`" + `users` + "`" + `.` + "`" + `is_public` + "`" + ` = true
 ORDER BY
   releases.released_at DESC
 LIMIT
@@ -372,7 +385,7 @@ func (q *Queries) GetRepositoryByGithubID(ctx context.Context, githubID string) 
 
 const getUserByGitHubID = `-- name: GetUserByGitHubID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id
+  id, username, github_id, github_token, last_synced_at, public_id, is_public
 FROM
   users
 WHERE
@@ -389,13 +402,14 @@ func (q *Queries) GetUserByGitHubID(ctx context.Context, githubID uint64) (User,
 		&i.GithubToken,
 		&i.LastSyncedAt,
 		&i.PublicID,
+		&i.IsPublic,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id
+  id, username, github_id, github_token, last_synced_at, public_id, is_public
 FROM
   users
 WHERE
@@ -412,20 +426,21 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.GithubToken,
 		&i.LastSyncedAt,
 		&i.PublicID,
+		&i.IsPublic,
 	)
 	return i, err
 }
 
 const getUserByPublicID = `-- name: GetUserByPublicID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id
+  id, username, github_id, github_token, last_synced_at, public_id, is_public
 FROM
   users
 WHERE
   public_id = ?
 `
 
-func (q *Queries) GetUserByPublicID(ctx context.Context, publicID sql.NullString) (User, error) {
+func (q *Queries) GetUserByPublicID(ctx context.Context, publicID string) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUserByPublicID, publicID)
 	var i User
 	err := row.Scan(
@@ -435,13 +450,14 @@ func (q *Queries) GetUserByPublicID(ctx context.Context, publicID sql.NullString
 		&i.GithubToken,
 		&i.LastSyncedAt,
 		&i.PublicID,
+		&i.IsPublic,
 	)
 	return i, err
 }
 
 const getUsersInNeedOfAnUpdate = `-- name: GetUsersInNeedOfAnUpdate :many
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id
+  id, username, github_id, github_token, last_synced_at, public_id, is_public
 FROM
   users
 WHERE
@@ -464,6 +480,7 @@ func (q *Queries) GetUsersInNeedOfAnUpdate(ctx context.Context, lastSyncedAt tim
 			&i.GithubToken,
 			&i.LastSyncedAt,
 			&i.PublicID,
+			&i.IsPublic,
 		); err != nil {
 			return nil, err
 		}
@@ -665,21 +682,21 @@ func (q *Queries) UpdateRepositoryStar(ctx context.Context, arg UpdateRepository
 	return q.db.ExecContext(ctx, updateRepositoryStar, arg.UpdatedAt, arg.RepositoryID, arg.UserID)
 }
 
-const updateUserPublicID = `-- name: UpdateUserPublicID :exec
+const updateUserIsPublic = `-- name: UpdateUserIsPublic :exec
 UPDATE users
 SET
-  public_id = ?
+  is_public = ?
 WHERE
   id = ?
 `
 
-type UpdateUserPublicIDParams struct {
-	PublicID sql.NullString
+type UpdateUserIsPublicParams struct {
+	IsPublic bool
 	ID       int32
 }
 
-func (q *Queries) UpdateUserPublicID(ctx context.Context, arg UpdateUserPublicIDParams) error {
-	_, err := q.db.ExecContext(ctx, updateUserPublicID, arg.PublicID, arg.ID)
+func (q *Queries) UpdateUserIsPublic(ctx context.Context, arg UpdateUserIsPublicParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserIsPublic, arg.IsPublic, arg.ID)
 	return err
 }
 

@@ -16,9 +16,16 @@ WHERE
 
 -- name: CreateUser :execresult
 INSERT INTO
-  users (github_id, username, github_token, last_synced_at)
+  users (
+    github_id,
+    username,
+    github_token,
+    last_synced_at,
+    is_public,
+    public_id
+  )
 VALUES
-  (?, ?, ?, ?);
+  (?, ?, ?, ?, ?, ?);
 
 -- name: UpdateUserToken :exec
 UPDATE users
@@ -27,10 +34,10 @@ SET
 WHERE
   id = ?;
 
--- name: UpdateUserPublicID :exec
+-- name: UpdateUserIsPublic :exec
 UPDATE users
 SET
-  public_id = ?
+  is_public = ?
 WHERE
   id = ?;
 
@@ -193,8 +200,10 @@ FROM
   `releases`
   LEFT JOIN `repositories` ON `releases`.`repository_id` = `repositories`.`id`
   INNER JOIN `repository_stars` ON `releases`.`repository_id` = `repository_stars`.`repository_id`
+  INNER JOIN `users` ON `repository_stars`.`user_id` = `users`.`id`
 WHERE
   `repository_stars`.`user_id` = ?
+  AND `users`.`is_public` = true
 ORDER BY
   releases.released_at DESC
 LIMIT

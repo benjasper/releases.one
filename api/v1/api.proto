@@ -50,13 +50,23 @@ message ToogleUserPublicFeedRequest {
 	bool enabled = 1;
 }
 message ToogleUserPublicFeedResponse {
-	optional string public_id = 1;
+	string public_id = 1;
+}
+
+message GetMyUserRequest {}
+message GetMyUserResponse {
+	int32 id = 1;
+	google.protobuf.Timestamp last_synced_at = 2;
+	bool is_public = 3;
+	string public_id = 4;
+	string name = 5;
 }
 
 service ApiService {
 	rpc Sync(SyncRequest) returns (SyncResponse);
 	rpc GetRepositories(GetRepositoriesRequest) returns (GetRepositoriesResponse);
 	rpc ToogleUserPublicFeed(ToogleUserPublicFeedRequest) returns (ToogleUserPublicFeedResponse);
+	rpc GetMyUser(GetMyUserRequest) returns (GetMyUserResponse);
 }
 
 message RefreshTokenRequest {

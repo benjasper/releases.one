@@ -53,5 +53,6 @@ type User struct {
 	GithubID     uint64
 	GithubToken  GitHubToken
 	LastSyncedAt time.Time
-	PublicID     sql.NullString
+	PublicID     string
+	IsPublic     bool
 }
