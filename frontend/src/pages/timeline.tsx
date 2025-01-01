@@ -118,7 +118,7 @@ const TimelinePage: Component = () => {
 
 									<Show when={user()?.isPublic}>
 										<div class="flex w-full items-center rounded-md border p-4">
-											<div class="flex w-full flex-col space-y-2 justify-items-start max-w-80">
+											<div class="flex w-full flex-col space-y-2 justify-items-start max-w-72">
 												<p class="text-sm font-medium leading-none">URLs</p>
 												<p class="text-sm text-muted-foreground">
 													Get this feed as a RSS or Atom feed.
@@ -159,10 +159,10 @@ const TimelinePage: Component = () => {
 				</div>
 				<For each={filteredTimeline()}>
 					{timelineItem => (
-						<Card class="mx-auto max-w-120 hover:shadow-lg transition-shadow duration-200">
+						<Card class="mx-auto w-full max-w-120 hover:shadow-lg transition-shadow duration-200">
 							<a href={timelineItem.url} target="_blank" rel="noopener noreferrer">
 								<CardHeader class="!p-0">
-									<img class="rounded-t-lg" src={timelineItem.imageUrl} alt={timelineItem.name} />
+									<img class="rounded-t-lg aspect-2/1" src={timelineItem.imageUrl} loading='lazy' alt={timelineItem.name} />
 								</CardHeader>
 								<CardContent class="flex flex-col !pb-0 pt-4 prose dark:prose-invert">
 									<span class="font-normal">{timelineItem.repositoryName}</span>
