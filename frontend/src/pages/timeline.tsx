@@ -1,4 +1,4 @@
-import { Component, createEffect, createResource, createSignal, For, Show } from 'solid-js'
+import { Component, createEffect, createResource, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { useConnect } from '~/context/connect-context'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/card'
 import { Avatar, AvatarFallback } from '~/components/ui/avatar'
@@ -9,6 +9,10 @@ import { Switch, SwitchControl, SwitchDescription, SwitchLabel, SwitchThumb } fr
 import { TextField, TextFieldInput } from '~/components/ui/text-field'
 import { Badge } from '~/components/ui/badge'
 import CopyText from '~/components/copy-text'
+import DarkModeToggle from '~/components/dark-mode-toggle'
+import { FiArrowUp, FiExternalLink } from 'solid-icons/fi'
+import { formatDistance } from 'date-fns/formatDistance'
+import { Tooltip, TooltipContent, TooltipTrigger } from '~/components/ui/tooltip'
 
 const TimelinePage: Component = () => {
 	const connect = useConnect()
@@ -17,6 +21,8 @@ const TimelinePage: Component = () => {
 
 	const [search, setSearch] = createSignal('')
 	const [descriptionEnabled, setDescriptionEnabled] = createSignal(true)
+	const [isScrollingDown, setIsScrollingDown] = createSignal(false)
+	const [now, setNow] = createSignal(Date.now())
 
 	const filteredTimeline = () =>
 		timeline()?.timeline.filter(x => x.repositoryName.toLowerCase().includes(search().toLowerCase())) ?? []
@@ -26,14 +32,44 @@ const TimelinePage: Component = () => {
 		refetchUser()
 	}
 
+	// Signal when scrolling down
+	const handleScroll = () => {
+		setIsScrollingDown(window.scrollY > 20)
+	}
+
+	onMount(() => {
+		window.addEventListener('scroll', handleScroll)
+	})
+
+	onCleanup(() => {
+		window.removeEventListener('scroll', handleScroll)
+	})
+
+	setInterval(() => {
+		setNow(Date.now())
+	}, 1000)
+
+	const calculateDuration = (date: Date): string => {
+		return formatDistance(date, now(), { addSuffix: true })
+	}
+
 	return (
 		<div class="flex flex-col gap-4 container pt-4">
+			<Button
+				classList={{
+					'opacity-100': isScrollingDown(),
+				}}
+				class="fixed bottom-10 right-10 z-50 p-3 opacity-0 transition-all cursor-pointer"
+				onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+				<FiArrowUp class="w-6 h-6" />
+			</Button>
 			<div class="flex items-center justify-between space-y-2">
 				<div>
 					<h2 class="text-2xl font-bold tracking-tight">Welcome back!</h2>
 					<p class="text-muted-foreground">Here&apos;s a list of recent releases!</p>
 				</div>
-				<div class="flex items-center space-x-6">
+				<div class="flex items-center space-x-4">
+					<DarkModeToggle />
 					<Popover>
 						<PopoverTrigger as={Button<'button'>} class="cursor-pointer">
 							RSS Feed
@@ -107,15 +143,28 @@ const TimelinePage: Component = () => {
 							<CardHeader class="!p-0">
 								<img class="rounded-t-lg" src={timelineItem.imageUrl} alt={timelineItem.name} />
 							</CardHeader>
-							<CardContent class="flex flex-col !pb-0 pt-4 prose">
+							<CardContent class="flex flex-col !pb-0 pt-4 prose dark:prose-invert">
 								<span class="font-normal">{timelineItem.repositoryName}</span>
 								<h2 class="!mt-0 !mb-4 font-normal">{timelineItem.name}</h2>
 								<Show when={descriptionEnabled()}>
 									<div class="prose-sm" innerHTML={timelineItem.description}></div>
 								</Show>
 							</CardContent>
-							<CardFooter class="text-muted-foreground !pt-2 text-sm">
-								{timestampDate(timelineItem.releasedAt!).toLocaleString()}
+							<CardFooter class="flex justify-between text-muted-foreground !pt-2 text-sm">
+								<Tooltip>
+									<TooltipTrigger>
+										{calculateDuration(timestampDate(timelineItem.releasedAt!))}
+									</TooltipTrigger>
+									<TooltipContent>{timestampDate(timelineItem.releasedAt!).toLocaleString()}</TooltipContent>
+								</Tooltip>
+
+								<a
+									href={timelineItem.url}
+									target="_blank"
+									rel="noopener noreferrer"
+									class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
+									<FiExternalLink class="w-4 h-4" />
+								</a>
 							</CardFooter>
 						</a>
 					</Card>

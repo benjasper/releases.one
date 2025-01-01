@@ -3,6 +3,8 @@
 @plugin 'tailwindcss-animate';
 @plugin '@tailwindcss/typography';
 
+@variant dark (.dark &,[data-kb-theme="dark"] &);
+
 @theme {
 	--color-border: hsl(var(--border));
 	--color-input: hsl(var(--input));
