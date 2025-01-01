@@ -1,14 +1,16 @@
-import type { Component } from 'solid-js'
+import { onMount, type Component } from 'solid-js'
 
-import logo from './logo.svg'
-import { Button, buttonVariants } from './components/ui/button'
-import { AiOutlineGithub } from 'solid-icons/ai'
+import { Router, Route } from '@solidjs/router'
+import LoginPage from './pages/login'
+import TimelinePage from './pages/timeline'
 
 const App: Component = () => {
 	return (
-		<a href={`http://localhost/login/github`} class={buttonVariants({ variant: 'default' })}>
-			Login to GitHub <AiOutlineGithub />
-		</a>
+		<Router>
+			<Route path="/login" component={LoginPage} />
+			<Route path="/" component={TimelinePage} />
+			<Route path="*" component={LoginPage} />
+		</Router>
 	)
 }
 

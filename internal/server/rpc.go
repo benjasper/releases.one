@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"time"
+	"net/url"
 
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
@@ -20,13 +20,15 @@ type RpcServer struct {
 	repository  *repository.Queries
 	syncService *services.SyncService
 	jwtSecret   []byte
+	baseURL     *url.URL
 }
 
-func NewRpcServer(repository *repository.Queries, syncService *services.SyncService, jwtSecret []byte) *RpcServer {
+func NewRpcServer(repository *repository.Queries, syncService *services.SyncService, jwtSecret []byte, baseURL *url.URL) *RpcServer {
 	return &RpcServer{
 		jwtSecret:   jwtSecret,
 		repository:  repository,
 		syncService: syncService,
+		baseURL:     baseURL,
 	}
 }
 
@@ -154,20 +156,25 @@ func (s *RpcServer) ToogleUserPublicFeed(ctx context.Context, req *connect.Reque
 }
 
 func (s *RpcServer) RefreshToken(ctx context.Context, req *connect.Request[apiv1.RefreshTokenRequest]) (*connect.Response[apiv1.RefreshTokenResponse], error) {
-	userID := req.Msg.UserId
-	refreshToken := req.Msg.RefreshToken
+	httpReq := http.Request{Header: req.Header()}
+	cookies := httpReq.CookiesNamed("refresh_token")
+	if len(cookies) == 0 {
+		return nil, errors.New("missing refresh token cookie")
+	}
 
-	err := validateRefreshTokenClaims(refreshToken, s.jwtSecret)
+	refreshToken := cookies[0].Value
+
+	userID, err := validateRefreshTokenClaims(refreshToken, s.jwtSecret)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("invalid refresh token"))
 	}
 
-	user, err := s.repository.GetUserByID(ctx, userID)
+	user, err := s.repository.GetUserByID(ctx, int32(userID))
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to retrieve user"))
 	}
 
-	accessToken, refreshToken, err := GenerateTokens(&user, s.jwtSecret)
+	accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt, err := GenerateTokens(&user, s.jwtSecret)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to generate tokens"))
 	}
@@ -175,6 +182,12 @@ func (s *RpcServer) RefreshToken(ctx context.Context, req *connect.Request[apiv1
 	res := connect.NewResponse(&apiv1.RefreshTokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		AccessTokenExpiresAt: &timestamppb.Timestamp{
+			Seconds: accessTokenExpiresAt.Unix(),
+		},
+		RefreshTokenExpiresAt: &timestamppb.Timestamp{
+			Seconds: refreshTokenExpiresAt.Unix(),
+		},
 	})
 
 	accessTokenCookie := &http.Cookie{
@@ -182,7 +195,10 @@ func (s *RpcServer) RefreshToken(ctx context.Context, req *connect.Request[apiv1
 		Value:    accessToken,
 		HttpOnly: true,
 		Secure:   true,
-		Expires:  time.Now().Add(time.Hour * 24 * 365),
+		Domain:   s.baseURL.Hostname(),
+		SameSite: http.SameSiteNoneMode,
+		Path:     "/",
+		Expires:  *accessTokenExpiresAt,
 	}
 
 	refreshTokenCookie := &http.Cookie{
@@ -190,8 +206,12 @@ func (s *RpcServer) RefreshToken(ctx context.Context, req *connect.Request[apiv1
 		Value:    refreshToken,
 		HttpOnly: true,
 		Secure:   true,
-		Expires:  time.Now().Add(time.Hour * 24 * 365),
+		Domain:   s.baseURL.Hostname(),
+		Path:     "/",
+		SameSite: http.SameSiteNoneMode,
+		Expires:  *refreshTokenExpiresAt,
 	}
+
 	res.Header().Add("Set-Cookie", accessTokenCookie.String())
 	res.Header().Add("Set-Cookie", refreshTokenCookie.String())
 

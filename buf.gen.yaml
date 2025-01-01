@@ -6,3 +6,9 @@ plugins:
   - local: protoc-gen-connect-go
     out: internal/gen
     opt: paths=source_relative
+  - local: frontend/node_modules/.bin/protoc-gen-es
+    out: frontend/src/lib/generated
+    # Also generate any imported dependencies
+    include_imports: true
+    # Add more plugin options here
+    opt: target=ts

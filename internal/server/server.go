@@ -8,6 +8,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
 	"github.com/gorilla/feeds"
+	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"golang.org/x/oauth2"
@@ -38,9 +40,10 @@ type Server struct {
 	syncService       *services.SyncService
 	githubOAuthConfig *oauth2.Config
 	jwtSecret         []byte
+	baseURL           *url.URL
 }
 
-func NewServer(repository *repository.Queries, githubOAuthConfig *oauth2.Config) *Server {
+func NewServer(repository *repository.Queries, githubOAuthConfig *oauth2.Config, baseURL *url.URL) *Server {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET must be set")
@@ -51,18 +54,25 @@ func NewServer(repository *repository.Queries, githubOAuthConfig *oauth2.Config)
 		githubOAuthConfig: githubOAuthConfig,
 		syncService:       services.NewSyncService(repository, githubOAuthConfig),
 		jwtSecret:         []byte(jwtSecret),
+		baseURL:           baseURL,
 	}
 }
 
 // Start runs the server
 func (s *Server) Start() {
-	rpcServer := NewRpcServer(s.repository, s.syncService, s.jwtSecret)
+	rpcServer := NewRpcServer(s.repository, s.syncService, s.jwtSecret, s.baseURL)
 	mux := http.NewServeMux()
 
 	middleware := authn.NewMiddleware(func(ctx context.Context, req *http.Request) (any, error) {
-		rawToken, ok := authn.BearerToken(req)
-		if !ok {
-			return nil, errors.New("missing authorization header")
+		rawToken, _ := authn.BearerToken(req)
+
+		if rawToken == "" {
+			cookies := req.CookiesNamed("access_token")
+			if len(cookies) == 0 {
+				return nil, errors.New("missing authorization")
+			}
+
+			rawToken = cookies[0].Value
 		}
 
 		userID, err := validateAccessTokenClaims(rawToken, s.jwtSecret)
@@ -101,8 +111,17 @@ func (s *Server) Start() {
 
 	s.ScheduleJobs()
 
+	// TODO: Make origin configurable
+	corsConfig := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+	})
+	corsHandledMux := corsConfig.Handler(mux)
+
 	slog.Info("Starting server on port 80")
-	http.ListenAndServe(":80", h2c.NewHandler(mux, &http2.Server{}))
+	http.ListenAndServe(":80", h2c.NewHandler(corsHandledMux, &http2.Server{}))
 }
 
 func (s *Server) ScheduleJobs() {
@@ -176,7 +195,7 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 
 	user, err := s.repository.GetUserByGitHubID(r.Context(), githubUser.ID)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
-		slog.Info("No user found, creating new user")
+		slog.Info("No user found, creating new user", "username", githubUser.Login)
 		_, err = s.repository.CreateUser(r.Context(), repository.CreateUserParams{
 			GithubID:     githubUser.ID,
 			Username:     githubUser.Login,
@@ -210,7 +229,7 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	accessToken, refreshToken, err := GenerateTokens(&user, s.jwtSecret)
+	accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt, err := GenerateTokens(&user, s.jwtSecret)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to generate tokens: %s", err.Error()))
 		http.Error(w, "Failed to generate tokens", http.StatusInternalServerError)
@@ -222,7 +241,10 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 		Value:    accessToken,
 		HttpOnly: true,
 		Secure:   true,
-		Expires:  time.Now().Add(time.Hour * 24 * 365),
+		Domain:   s.baseURL.Hostname(),
+		SameSite: http.SameSiteNoneMode,
+		Path:     "/",
+		Expires:  *accessTokenExpiresAt,
 	})
 
 	http.SetCookie(w, &http.Cookie{
@@ -230,7 +252,10 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 		Value:    refreshToken,
 		HttpOnly: true,
 		Secure:   true,
-		Expires:  time.Now().Add(time.Hour * 24 * 365),
+		Domain:   s.baseURL.Hostname(),
+		SameSite: http.SameSiteNoneMode,
+		Path:     "/",
+		Expires:  *refreshTokenExpiresAt,
 	})
 
 	loginSuccessRedirectURL := os.Getenv("LOGIN_SUCCESS_REDIRECT_URL")
@@ -238,7 +263,17 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 		loginSuccessRedirectURL = "/"
 	}
 
-	http.Redirect(w, r, loginSuccessRedirectURL, http.StatusTemporaryRedirect)
+	u, err := url.Parse(loginSuccessRedirectURL)
+	if err != nil {
+		http.Error(w, "Failed to parse login success redirect URL: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	query := u.Query()
+	query.Add("access_token_expires_at", accessTokenExpiresAt.Format(time.RFC3339))
+	u.RawQuery = query.Encode()
+
+	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 }
 
 func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedType) {

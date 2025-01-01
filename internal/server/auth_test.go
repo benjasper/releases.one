@@ -11,7 +11,7 @@ func TestGenerateTokens(t *testing.T) {
 		ID: 1,
 	}
 
-	accessToken, refreshToken, err := GenerateTokens(user, []byte("secret"))
+	accessToken, refreshToken, _, _, err := GenerateTokens(user, []byte("secret"))
 	if err != nil {
 		t.Fatal(err)
 	}

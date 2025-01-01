@@ -1,0 +1,26 @@
+version: '3'
+
+tasks:
+  generate-proto:
+    cmds:
+      - buf generate api/v1/api.proto
+  generate-sqlc:
+    cmds:
+      - sqlc generate
+  generate:
+    cmds:
+      - task: generate-proto
+      - task: generate-sqlc
+
+  start-frontend:
+    cmds:
+      - cd frontend && pnpm start
+
+  start-api:
+    cmds:
+      - go run main.go
+
+  dev:
+    deps:
+      - task: start-api
+      - task: start-frontend

@@ -69,14 +69,13 @@ service ApiService {
 	rpc GetMyUser(GetMyUserRequest) returns (GetMyUserResponse);
 }
 
-message RefreshTokenRequest {
-	int32 user_id = 1;
-	string refresh_token = 2;
-}
+message RefreshTokenRequest {}
 
 message RefreshTokenResponse {
 	string access_token = 1;
 	string refresh_token = 2;
+	google.protobuf.Timestamp access_token_expires_at = 3;
+	google.protobuf.Timestamp refresh_token_expires_at = 4;
 }
 
 service AuthService {

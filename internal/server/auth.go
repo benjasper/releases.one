@@ -19,10 +19,11 @@ var (
 
 var Issuer = "releases.one"
 
-func GenerateTokens(user *repository.User, signingKey []byte) (accessToken, refreshToken string, err error) {
+func GenerateTokens(user *repository.User, signingKey []byte) (accessToken, refreshToken string, accessTokenExpiresAt, refreshTokenExpiresAt *time.Time, err error) {
 	// Create the access token
+	accessTokenExpiration := time.Now().Add(time.Hour * 2)
 	claims := &jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 2)),
+		ExpiresAt: jwt.NewNumericDate(accessTokenExpiration),
 		Issuer:    Issuer,
 		Subject:   strconv.Itoa(int(user.ID)),
 		Audience:  jwt.ClaimStrings{AudienceAccess},
@@ -31,12 +32,13 @@ func GenerateTokens(user *repository.User, signingKey []byte) (accessToken, refr
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	accessToken, err = token.SignedString(signingKey)
 	if err != nil {
-		return "", "", errors.Join(err, errors.New("could not sign access token"))
+		return "", "", nil, nil, errors.Join(err, errors.New("could not sign access token"))
 	}
 
 	// Create the refresh token
+	refreshTokenExpiration := time.Now().Add(time.Hour * 24 * 365)
 	refreshTokenClaims := &jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 365)),
+		ExpiresAt: jwt.NewNumericDate(refreshTokenExpiration),
 		Issuer:    Issuer,
 		Subject:   strconv.Itoa(int(user.ID)),
 		Audience:  jwt.ClaimStrings{AudienceRefresh},
@@ -44,10 +46,10 @@ func GenerateTokens(user *repository.User, signingKey []byte) (accessToken, refr
 
 	refreshToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, refreshTokenClaims).SignedString(signingKey)
 	if err != nil {
-		return "", "", errors.Join(err, errors.New("could not sign refresh token"))
+		return "", "", nil, nil, errors.Join(err, errors.New("could not sign refresh token"))
 	}
 
-	return accessToken, refreshToken, nil
+	return accessToken, refreshToken, &accessTokenExpiration, &refreshTokenExpiration, nil
 }
 
 func parseToken(tokenString string, signingKey []byte) (*jwt.Token, *jwt.RegisteredClaims, error) {
@@ -89,19 +91,24 @@ func validateAccessTokenClaims(tokenString string, signingKey []byte) (int, erro
 	return userID, nil
 }
 
-func validateRefreshTokenClaims(tokenString string, signingKey []byte) error {
+func validateRefreshTokenClaims(tokenString string, signingKey []byte) (int,error) {
 	_, claims, err := parseToken(tokenString, signingKey)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	if claims.Issuer != Issuer {
-		return errors.New("invalid issuer")
+		return 0, errors.New("invalid issuer")
 	}
 
 	if !slices.Contains(claims.Audience, AudienceRefresh) {
-		return errors.New("invalid audience")
+		return 0, errors.New("invalid audience")
 	}
 
-	return nil
+	userID, err := strconv.Atoi(claims.Subject)
+	if err != nil {
+		return 0, errors.Join(err, errors.New("invalid subject"))
+	}
+
+	return userID, nil
 }
