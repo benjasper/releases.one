@@ -17,7 +17,7 @@ const CopyText: Component<CopyTextProps> = props => {
 
 	return (
 		<div class="flex gap-2">
-			<span class="flex-1 select-all w-full text-sm p-2 text-muted-foreground border rounded-md">
+			<span class="flex-1 select-all whitespace-nowrap overflow-auto no-scrollbar w-full text-sm p-2 text-muted-foreground border rounded-md">
 				{props.text}
 			</span>
 			<Button class="cursor-pointer" onClick={copy}>

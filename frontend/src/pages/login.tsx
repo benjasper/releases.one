@@ -3,9 +3,9 @@ import { Component } from 'solid-js'
 import { buttonVariants } from '~/components/ui/button'
 
 const LoginPage: Component = () => {
-	// TODO: Make baseUrl dependent on environment
+	const baseUrl = import.meta.env.VITE_API_BASE_URL
 	return (
-		<a href={`http://localhost/login/github`} class={buttonVariants({ variant: 'default' })}>
+		<a href={`${baseUrl}/login/github`} class={buttonVariants({ variant: 'default' })}>
 			Login to GitHub <AiOutlineGithub />
 		</a>
 	)

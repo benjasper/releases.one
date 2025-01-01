@@ -4,9 +4,8 @@ import { createConnectTransport } from '@connectrpc/connect-web'
 import { useNavigate } from '@solidjs/router'
 import { AuthService } from '~/lib/generated/api/v1/api_pb'
 
-// TODO: Change baseUrl
 const transport = createConnectTransport({
-	baseUrl: 'http://localhost',
+	baseUrl: import.meta.env.VITE_API_BASE_URL,
 	useBinaryFormat: true,
 	fetch: (url, options) => {
 		return fetch(url, {credentials: 'include', ...options})
