@@ -78,7 +78,7 @@ const TimelinePage: Component = () => {
 					classList={{
 						'opacity-100': isScrollingDown(),
 					}}
-					class="fixed bottom-5 right-5 z-50 p-3 opacity-0 transition-all cursor-pointer"
+					class="fixed bottom-10 right-5 z-50 p-3 opacity-0 transition-all cursor-pointer"
 					onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
 					<FiArrowUp class="w-6 h-6" />
 				</Button>

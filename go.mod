@@ -6,6 +6,7 @@ require (
 	connectrpc.com/authn v0.2.0
 	connectrpc.com/connect v1.17.0
 	connectrpc.com/grpcreflect v1.2.0
+	github.com/caarlos0/env/v11 v11.3.1
 	github.com/go-co-op/gocron/v2 v2.12.4
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -14,6 +15,7 @@ require (
 	github.com/gorilla/feeds v1.2.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mitchellh/hashstructure/v2 v2.0.2
+	github.com/olivere/vite v0.0.0-20241125063354-5c2fc1f1ddc2
 	github.com/rs/cors v1.11.1
 	golang.org/x/net v0.23.0
 	golang.org/x/oauth2 v0.24.0

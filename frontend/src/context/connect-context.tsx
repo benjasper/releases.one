@@ -8,8 +8,8 @@ import { useNavigate } from '@solidjs/router'
 
 const authInterceptor: Interceptor = next => async req => {
 	if (!(await isAuthenticated())) {
-		const navigate = useNavigate()
-		navigate('/login')
+		// const navigate = useNavigate()
+		// navigate('/login')
 		return await next(req)
 	}
 

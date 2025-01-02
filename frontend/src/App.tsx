@@ -14,7 +14,7 @@ const App: Component = () => {
 			<ConnectProvider>
 				<ColorModeScript storageType={storageManager.type} />
 				<ColorModeProvider storageManager={storageManager}>
-					<Router>
+					<Router explicitLinks={true}>
 						<Route path="/login" component={LoginPage} />
 						<Route path="/" component={TimelinePage} />
 						<Route path="*" component={LoginPage} />

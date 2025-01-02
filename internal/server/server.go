@@ -1,20 +1,26 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	_ "embed"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"log"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
+	"text/template"
 	"time"
 
 	"connectrpc.com/authn"
 	"connectrpc.com/grpcreflect"
+	"github.com/benjasper/releases.one/internal/config"
 	"github.com/benjasper/releases.one/internal/gen/api/v1/apiv1connect"
 	"github.com/benjasper/releases.one/internal/github"
 	"github.com/benjasper/releases.one/internal/repository"
@@ -22,6 +28,7 @@ import (
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
 	"github.com/gorilla/feeds"
+	"github.com/olivere/vite"
 	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -36,31 +43,28 @@ var (
 )
 
 type Server struct {
+	config            *config.Config
 	repository        *repository.Queries
 	syncService       *services.SyncService
 	githubOAuthConfig *oauth2.Config
-	jwtSecret         []byte
 	baseURL           *url.URL
+	distFS            *fs.FS
 }
 
-func NewServer(repository *repository.Queries, githubOAuthConfig *oauth2.Config, baseURL *url.URL) *Server {
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		log.Fatal("JWT_SECRET must be set")
-	}
-
+func NewServer(config *config.Config, repository *repository.Queries, githubOAuthConfig *oauth2.Config, baseURL *url.URL, distFS *fs.FS) *Server {
 	return &Server{
+		config:            config,
 		repository:        repository,
 		githubOAuthConfig: githubOAuthConfig,
 		syncService:       services.NewSyncService(repository, githubOAuthConfig),
-		jwtSecret:         []byte(jwtSecret),
 		baseURL:           baseURL,
+		distFS:            distFS,
 	}
 }
 
 // Start runs the server
 func (s *Server) Start() {
-	rpcServer := NewRpcServer(s.repository, s.syncService, s.jwtSecret, s.baseURL)
+	rpcServer := NewRpcServer(s.config, s.repository, s.syncService, s.baseURL)
 	mux := http.NewServeMux()
 
 	middleware := authn.NewMiddleware(func(ctx context.Context, req *http.Request) (any, error) {
@@ -75,7 +79,7 @@ func (s *Server) Start() {
 			rawToken = cookies[0].Value
 		}
 
-		userID, err := validateAccessTokenClaims(rawToken, s.jwtSecret)
+		userID, err := validateAccessTokenClaims(rawToken, []byte(s.config.JWTSecret))
 		if err != nil {
 			slog.Error(fmt.Sprintf("Invalid access token: %s", err.Error()))
 			return nil, errors.New("invalid token")
@@ -109,6 +113,16 @@ func (s *Server) Start() {
 		s.GetFeed(w, r, RssFeedType)
 	})
 
+	indexHtml, err := s.CreateViteTemplate()
+	if err != nil {
+		panic(err)
+	}
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write(indexHtml.Bytes())
+	})
+	mux.Handle("/assets/", http.FileServerFS(*s.distFS))
+
 	s.ScheduleJobs()
 
 	// TODO: Make origin configurable
@@ -122,6 +136,53 @@ func (s *Server) Start() {
 
 	slog.Info("Starting server on port 80")
 	http.ListenAndServe(":80", h2c.NewHandler(corsHandledMux, &http2.Server{}))
+}
+
+func (s *Server) CreateViteTemplate() (*bytes.Buffer, error) {
+	viteConfig := vite.Config{
+		FS:           os.DirFS("frontend/src"), // required: Vite build output
+		IsDev:        true,                     // required: true or false
+		ViteURL:      "http://localhost:3000",  // optional: defaults to this
+		ViteEntry:    "src/index.tsx",          // optional: dependent on your frontend stack
+		ViteTemplate: vite.SolidTs,
+	}
+
+	if s.config.IsProduction {
+		viteConfig = vite.Config{
+			FS:    *s.distFS, // required: Vite build output
+			IsDev: false,     // required: true or false
+		}
+	}
+
+	viteFragment, err := vite.HTMLFragment(viteConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	indexFile, err := os.Open("internal/templates/index.html")
+	if err != nil {
+		panic(err)
+	}
+	defer indexFile.Close()
+
+	// Read the index.html file into a byte slice
+	indexBytes, err := io.ReadAll(indexFile)
+	if err != nil {
+		panic(err)
+	}
+
+	indexHtml := bytes.NewBuffer([]byte{})
+	t := template.Must(template.New("name").Parse(string(indexBytes)))
+	pageData := map[string]interface{}{
+		"Vite": viteFragment,
+	}
+
+	err = t.Execute(indexHtml, pageData)
+	if err != nil {
+		panic(err)
+	}
+
+	return indexHtml, nil
 }
 
 func (s *Server) ScheduleJobs() {
@@ -229,7 +290,7 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt, err := GenerateTokens(&user, s.jwtSecret)
+	accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt, err := GenerateTokens(&user, []byte(s.config.JWTSecret))
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to generate tokens: %s", err.Error()))
 		http.Error(w, "Failed to generate tokens", http.StatusInternalServerError)

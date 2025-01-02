@@ -33,9 +33,13 @@ func TestGenerateTokens(t *testing.T) {
 		t.Fatal("user id does not match")
 	}
 
-	err = validateRefreshTokenClaims(refreshToken, []byte("secret"))
+	userID, err = validateRefreshTokenClaims(refreshToken, []byte("secret"))
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if userID != 1 {
+		t.Fatal("user id does not match")
 	}
 }
 

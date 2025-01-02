@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
+	"github.com/benjasper/releases.one/internal/config"
 	apiv1 "github.com/benjasper/releases.one/internal/gen/api/v1"
 	"github.com/benjasper/releases.one/internal/repository"
 	"github.com/benjasper/releases.one/internal/server/services"
@@ -17,15 +18,15 @@ import (
 )
 
 type RpcServer struct {
+	config      *config.Config
 	repository  *repository.Queries
 	syncService *services.SyncService
-	jwtSecret   []byte
 	baseURL     *url.URL
 }
 
-func NewRpcServer(repository *repository.Queries, syncService *services.SyncService, jwtSecret []byte, baseURL *url.URL) *RpcServer {
+func NewRpcServer(config *config.Config, repository *repository.Queries, syncService *services.SyncService, baseURL *url.URL) *RpcServer {
 	return &RpcServer{
-		jwtSecret:   jwtSecret,
+		config:      config,
 		repository:  repository,
 		syncService: syncService,
 		baseURL:     baseURL,
@@ -165,7 +166,7 @@ func (s *RpcServer) RefreshToken(ctx context.Context, req *connect.Request[apiv1
 
 	refreshToken := cookies[0].Value
 
-	userID, err := validateRefreshTokenClaims(refreshToken, s.jwtSecret)
+	userID, err := validateRefreshTokenClaims(refreshToken, []byte(s.config.JWTSecret))
 	if err != nil {
 		return nil, errors.Join(err, errors.New("invalid refresh token"))
 	}
@@ -175,7 +176,7 @@ func (s *RpcServer) RefreshToken(ctx context.Context, req *connect.Request[apiv1
 		return nil, errors.Join(err, errors.New("failed to retrieve user"))
 	}
 
-	accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt, err := GenerateTokens(&user, s.jwtSecret)
+	accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt, err := GenerateTokens(&user, []byte(s.config.JWTSecret))
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to generate tokens"))
 	}
