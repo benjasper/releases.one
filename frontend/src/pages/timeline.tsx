@@ -160,36 +160,51 @@ const TimelinePage: Component = () => {
 				<For each={filteredTimeline()}>
 					{timelineItem => (
 						<Card class="mx-auto w-full max-w-120 hover:shadow-lg transition-shadow duration-200">
-							<a href={timelineItem.url} target="_blank" rel="noopener noreferrer">
-								<CardHeader class="!p-0">
-									<img class="rounded-t-lg aspect-2/1" src={timelineItem.imageUrl} loading='lazy' alt={timelineItem.name} />
-								</CardHeader>
-								<CardContent class="flex flex-col !pb-0 pt-4 prose dark:prose-invert">
+							<CardHeader class="!p-0">
+								<img
+									class="rounded-t-lg aspect-2/1"
+									src={timelineItem.imageUrl}
+									loading="lazy"
+									alt={timelineItem.name}
+								/>
+							</CardHeader>
+							<CardContent class="flex flex-col !pb-0 pt-4 prose dark:prose-invert">
+								<a
+									href={timelineItem.repositoryUrl}
+									class="no-underline hover:underline"
+									target="_blank"
+									rel="noopener noreferrer">
 									<span class="font-normal">{timelineItem.repositoryName}</span>
+								</a>
+								<a
+									href={timelineItem.url}
+									class="no-underline hover:underline"
+									target="_blank"
+									rel="noopener noreferrer">
 									<h2 class="!mt-0 !mb-4 font-normal">{timelineItem.name}</h2>
-									<Show when={descriptionEnabled()}>
-										<div class="prose-sm" innerHTML={timelineItem.description}></div>
-									</Show>
-								</CardContent>
-								<CardFooter class="flex justify-between text-muted-foreground !pt-2 text-sm">
-									<Tooltip>
-										<TooltipTrigger>
-											{calculateDuration(timestampDate(timelineItem.releasedAt!))}
-										</TooltipTrigger>
-										<TooltipContent>
-											{timestampDate(timelineItem.releasedAt!).toLocaleString()}
-										</TooltipContent>
-									</Tooltip>
+								</a>
+								<Show when={descriptionEnabled()}>
+									<div class="prose-sm" innerHTML={timelineItem.description}></div>
+								</Show>
+							</CardContent>
+							<CardFooter class="flex justify-between text-muted-foreground !pt-2 text-sm">
+								<Tooltip>
+									<TooltipTrigger>
+										{calculateDuration(timestampDate(timelineItem.releasedAt!))}
+									</TooltipTrigger>
+									<TooltipContent>
+										{timestampDate(timelineItem.releasedAt!).toLocaleString()}
+									</TooltipContent>
+								</Tooltip>
 
-									<a
-										href={timelineItem.url}
-										target="_blank"
-										rel="noopener noreferrer"
-										class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
-										<FiExternalLink class="w-4 h-4" />
-									</a>
-								</CardFooter>
-							</a>
+								<a
+									href={timelineItem.url}
+									target="_blank"
+									rel="noopener noreferrer"
+									class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
+									<FiExternalLink class="w-4 h-4" />
+								</a>
+							</CardFooter>
 						</Card>
 					)}
 				</For>

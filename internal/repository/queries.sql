@@ -195,7 +195,8 @@ SELECT
   `repositories`.`name` AS repository_name,
   `repositories`.`image_url` AS image_url,
   `repositories`.`image_size` AS image_size,
-  `repositories`.`github_id` AS repository_github_id
+  `repositories`.`github_id` AS repository_github_id,
+  `repositories`.`url` AS repository_url
 FROM
   `releases`
   LEFT JOIN `repositories` ON `releases`.`repository_id` = `repositories`.`id`
@@ -225,7 +226,8 @@ SELECT
   `releases`.`updated_at`,
   `repositories`.`name` AS repository_name,
   `repositories`.`image_url` AS image_url,
-  `repositories`.`image_size` AS image_size
+  `repositories`.`image_size` AS image_size,
+  `repositories`.`url` AS repository_url
 FROM
   `releases`
   LEFT JOIN `repositories` ON `releases`.`repository_id` = `repositories`.`id`

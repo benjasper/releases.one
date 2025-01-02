@@ -119,6 +119,7 @@ func (s *RpcServer) GetRepositories(ctx context.Context, req *connect.Request[ap
 			IsPrerelease:   release.IsPrerelease,
 			ReleasedAt:     timestamppb.New(release.ReleasedAt),
 			RepositoryName: release.RepositoryName.String,
+			RepositoryUrl:  release.RepositoryUrl.String,
 			ImageUrl:       release.ImageUrl.String,
 		})
 	}

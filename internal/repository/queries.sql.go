@@ -193,7 +193,8 @@ SELECT
   ` + "`" + `repositories` + "`" + `.` + "`" + `name` + "`" + ` AS repository_name,
   ` + "`" + `repositories` + "`" + `.` + "`" + `image_url` + "`" + ` AS image_url,
   ` + "`" + `repositories` + "`" + `.` + "`" + `image_size` + "`" + ` AS image_size,
-  ` + "`" + `repositories` + "`" + `.` + "`" + `github_id` + "`" + ` AS repository_github_id
+  ` + "`" + `repositories` + "`" + `.` + "`" + `github_id` + "`" + ` AS repository_github_id,
+  ` + "`" + `repositories` + "`" + `.` + "`" + `url` + "`" + ` AS repository_url
 FROM
   ` + "`" + `releases` + "`" + `
   LEFT JOIN ` + "`" + `repositories` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repositories` + "`" + `.` + "`" + `id` + "`" + `
@@ -226,6 +227,7 @@ type GetReleasesForUserRow struct {
 	ImageUrl           sql.NullString
 	ImageSize          sql.NullInt32
 	RepositoryGithubID sql.NullString
+	RepositoryUrl      sql.NullString
 }
 
 func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetReleasesForUserRow, error) {
@@ -255,6 +257,7 @@ func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetRe
 			&i.ImageUrl,
 			&i.ImageSize,
 			&i.RepositoryGithubID,
+			&i.RepositoryUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -285,7 +288,8 @@ SELECT
   ` + "`" + `releases` + "`" + `.` + "`" + `updated_at` + "`" + `,
   ` + "`" + `repositories` + "`" + `.` + "`" + `name` + "`" + ` AS repository_name,
   ` + "`" + `repositories` + "`" + `.` + "`" + `image_url` + "`" + ` AS image_url,
-  ` + "`" + `repositories` + "`" + `.` + "`" + `image_size` + "`" + ` AS image_size
+  ` + "`" + `repositories` + "`" + `.` + "`" + `image_size` + "`" + ` AS image_size,
+  ` + "`" + `repositories` + "`" + `.` + "`" + `url` + "`" + ` AS repository_url
 FROM
   ` + "`" + `releases` + "`" + `
   LEFT JOIN ` + "`" + `repositories` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repositories` + "`" + `.` + "`" + `id` + "`" + `
@@ -314,6 +318,7 @@ type GetReleasesForUserShortDescriptionRow struct {
 	RepositoryName   sql.NullString
 	ImageUrl         sql.NullString
 	ImageSize        sql.NullInt32
+	RepositoryUrl    sql.NullString
 }
 
 func (q *Queries) GetReleasesForUserShortDescription(ctx context.Context, userID int32) ([]GetReleasesForUserShortDescriptionRow, error) {
@@ -341,6 +346,7 @@ func (q *Queries) GetReleasesForUserShortDescription(ctx context.Context, userID
 			&i.RepositoryName,
 			&i.ImageUrl,
 			&i.ImageSize,
+			&i.RepositoryUrl,
 		); err != nil {
 			return nil, err
 		}
