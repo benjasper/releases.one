@@ -50,7 +50,7 @@ func main() {
 		log.Fatalf("BASE_URL must be set and must be a valid URL: %s", err)
 	}
 
-	githubCallbackURL := fmt.Sprintf("%s/github", baseURL.String())
+	githubCallbackURL := fmt.Sprintf("%s/api/github", baseURL.String())
 
 	oauthConfig := &oauth2.Config{
 		ClientID:     cfg.GithubClientID,
