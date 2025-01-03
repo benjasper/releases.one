@@ -20,6 +20,9 @@ import (
 //go:embed frontend/dist/*
 var distFS embed.FS
 
+//go:embed internal/templates/index.html
+var indexHTML []byte
+
 func DistFS() *fs.FS {
 	efs, err := fs.Sub(distFS, "frontend/dist")
 	if err != nil {
@@ -69,6 +72,6 @@ func main() {
 
 	repository := repository.New(db)
 
-	server := server.NewServer(cfg, repository, oauthConfig, baseURL, DistFS())
+	server := server.NewServer(cfg, repository, oauthConfig, baseURL, DistFS(), indexHTML)
 	server.Start()
 }

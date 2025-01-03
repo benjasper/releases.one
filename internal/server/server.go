@@ -7,7 +7,6 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"log/slog"
@@ -48,9 +47,10 @@ type Server struct {
 	githubOAuthConfig *oauth2.Config
 	baseURL           *url.URL
 	distFS            *fs.FS
+	indexHTML         []byte
 }
 
-func NewServer(config *config.Config, repository *repository.Queries, githubOAuthConfig *oauth2.Config, baseURL *url.URL, distFS *fs.FS) *Server {
+func NewServer(config *config.Config, repository *repository.Queries, githubOAuthConfig *oauth2.Config, baseURL *url.URL, distFS *fs.FS, indexHTML []byte) *Server {
 	return &Server{
 		config:            config,
 		repository:        repository,
@@ -58,6 +58,7 @@ func NewServer(config *config.Config, repository *repository.Queries, githubOAut
 		syncService:       services.NewSyncService(repository, githubOAuthConfig),
 		baseURL:           baseURL,
 		distFS:            distFS,
+		indexHTML:         indexHTML,
 	}
 }
 
@@ -158,20 +159,8 @@ func (s *Server) CreateViteTemplate() (*bytes.Buffer, error) {
 		panic(err)
 	}
 
-	indexFile, err := os.Open("internal/templates/index.html")
-	if err != nil {
-		panic(err)
-	}
-	defer indexFile.Close()
-
-	// Read the index.html file into a byte slice
-	indexBytes, err := io.ReadAll(indexFile)
-	if err != nil {
-		panic(err)
-	}
-
 	indexHtml := bytes.NewBuffer([]byte{})
-	t := template.Must(template.New("name").Parse(string(indexBytes)))
+	t := template.Must(template.New("name").Parse(string(s.indexHTML)))
 	pageData := map[string]interface{}{
 		"Vite": viteFragment,
 	}
