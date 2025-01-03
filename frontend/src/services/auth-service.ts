@@ -1,7 +1,6 @@
 import { timestampDate } from '@bufbuild/protobuf/wkt'
 import { createClient } from '@connectrpc/connect'
 import { createConnectTransport } from '@connectrpc/connect-web'
-import { useNavigate } from '@solidjs/router'
 import { AuthService } from '~/lib/generated/api/v1/api_pb'
 
 const transport = createConnectTransport({
@@ -21,8 +20,6 @@ const isAuthenticated = async (): Promise<boolean> => {
 	if (urlParams.get('access_token_expires_at') !== null) {
 		const accessTokenExpiresAt = new Date(urlParams.get('access_token_expires_at')!)
 		localStorage.setItem(ACCESS_TOKEN_EXPIRES_AT, accessTokenExpiresAt.toISOString())
-		const navigate = useNavigate()
-		navigate('/')
 		return true
 	}
 

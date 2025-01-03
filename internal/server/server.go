@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"text/template"
 	"time"
 
@@ -191,17 +190,12 @@ func (s *Server) ScheduleJobs() {
 		log.Fatal(err)
 	}
 	_, err = scheduler.NewJob(gocron.CronJob("*/5 * * * *", false), gocron.NewTask(func(s *Server) {
-		interval := os.Getenv("USER_SYNC_INTERVAL")
-		if interval == "" {
-			interval = "8"
+		interval := s.config.UserSyncInterval
+		if interval == 0 {
+			interval = 8
 		}
 
-		intervalInt, err := strconv.Atoi(interval)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		users, err := s.repository.GetUsersInNeedOfAnUpdate(context.Background(), time.Now().Add(time.Hour*-time.Duration(intervalInt)))
+		users, err := s.repository.GetUsersInNeedOfAnUpdate(context.Background(), time.Now().Add(time.Hour*-time.Duration(interval)))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -334,7 +328,7 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 	query.Add("access_token_expires_at", accessTokenExpiresAt.Format(time.RFC3339))
 	u.RawQuery = query.Encode()
 
-	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
+	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
 func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedType) {

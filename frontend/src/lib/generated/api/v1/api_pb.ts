@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file api/v1/api.proto.
  */
 export const file_api_v1_api: GenFile = /*@__PURE__*/
-  fileDesc("ChBhcGkvdjEvYXBpLnByb3RvEgZhcGkudjEiTQoHUmVsZWFzZRIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSDgoGYXV0aG9yGAQgASgJIk8KClJlcG9zaXRvcnkSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRILCgN1cmwYAyABKAkSEQoJaW1hZ2VfdXJsGAQgASgJIpACCg1UaW1lbGluZUVudHJ5EgoKAmlkGAEgASgFEhUKDXJlcG9zaXRvcnlfaWQYAiABKAUSDAoEbmFtZRgDIAEoCRILCgN1cmwYBCABKAkSEAoIdGFnX25hbWUYBSABKAkSEwoLZGVzY3JpcHRpb24YBiABKAkSFQoNaXNfcHJlcmVsZWFzZRgHIAEoCBIvCgtyZWxlYXNlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFwoPcmVwb3NpdG9yeV9uYW1lGAkgASgJEhEKCWltYWdlX3VybBgKIAEoCRIOCgZhdXRob3IYCyABKAkSFgoOcmVwb3NpdG9yeV91cmwYDCABKAkiHwoLU3luY1JlcXVlc3QSEAoIdXNlcm5hbWUYASABKAkiNwoMU3luY1Jlc3BvbnNlEicKCHRpbWVsaW5lGAEgAygLMhUuYXBpLnYxLlRpbWVsaW5lRW50cnkiGAoWR2V0UmVwb3NpdG9yaWVzUmVxdWVzdCJCChdHZXRSZXBvc2l0b3JpZXNSZXNwb25zZRInCgh0aW1lbGluZRgBIAMoCzIVLmFwaS52MS5UaW1lbGluZUVudHJ5Ii4KG1Rvb2dsZVVzZXJQdWJsaWNGZWVkUmVxdWVzdBIPCgdlbmFibGVkGAEgASgIIjEKHFRvb2dsZVVzZXJQdWJsaWNGZWVkUmVzcG9uc2USEQoJcHVibGljX2lkGAEgASgJIhIKEEdldE15VXNlclJlcXVlc3QihwEKEUdldE15VXNlclJlc3BvbnNlEgoKAmlkGAEgASgFEjIKDmxhc3Rfc3luY2VkX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCglpc19wdWJsaWMYAyABKAgSEQoJcHVibGljX2lkGAQgASgJEgwKBG5hbWUYBSABKAkiFQoTUmVmcmVzaFRva2VuUmVxdWVzdCK+AQoUUmVmcmVzaFRva2VuUmVzcG9uc2USFAoMYWNjZXNzX3Rva2VuGAEgASgJEhUKDXJlZnJlc2hfdG9rZW4YAiABKAkSOwoXYWNjZXNzX3Rva2VuX2V4cGlyZXNfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjwKGHJlZnJlc2hfdG9rZW5fZXhwaXJlc19hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAyuAIKCkFwaVNlcnZpY2USMQoEU3luYxITLmFwaS52MS5TeW5jUmVxdWVzdBoULmFwaS52MS5TeW5jUmVzcG9uc2USUgoPR2V0UmVwb3NpdG9yaWVzEh4uYXBpLnYxLkdldFJlcG9zaXRvcmllc1JlcXVlc3QaHy5hcGkudjEuR2V0UmVwb3NpdG9yaWVzUmVzcG9uc2USYQoUVG9vZ2xlVXNlclB1YmxpY0ZlZWQSIy5hcGkudjEuVG9vZ2xlVXNlclB1YmxpY0ZlZWRSZXF1ZXN0GiQuYXBpLnYxLlRvb2dsZVVzZXJQdWJsaWNGZWVkUmVzcG9uc2USQAoJR2V0TXlVc2VyEhguYXBpLnYxLkdldE15VXNlclJlcXVlc3QaGS5hcGkudjEuR2V0TXlVc2VyUmVzcG9uc2UyWAoLQXV0aFNlcnZpY2USSQoMUmVmcmVzaFRva2VuEhsuYXBpLnYxLlJlZnJlc2hUb2tlblJlcXVlc3QaHC5hcGkudjEuUmVmcmVzaFRva2VuUmVzcG9uc2VCPVo7Z2l0aHViLmNvbS9iZW5qYXNwZXIvcmVsZWFzZXMub25lL2ludGVybmFsL2dlbi9hcGkvdjE7YXBpdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("ChBhcGkvdjEvYXBpLnByb3RvEgZhcGkudjEiTQoHUmVsZWFzZRIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSDgoGYXV0aG9yGAQgASgJIk8KClJlcG9zaXRvcnkSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRILCgN1cmwYAyABKAkSEQoJaW1hZ2VfdXJsGAQgASgJIpACCg1UaW1lbGluZUVudHJ5EgoKAmlkGAEgASgFEhUKDXJlcG9zaXRvcnlfaWQYAiABKAUSDAoEbmFtZRgDIAEoCRILCgN1cmwYBCABKAkSEAoIdGFnX25hbWUYBSABKAkSEwoLZGVzY3JpcHRpb24YBiABKAkSFQoNaXNfcHJlcmVsZWFzZRgHIAEoCBIvCgtyZWxlYXNlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFwoPcmVwb3NpdG9yeV9uYW1lGAkgASgJEhEKCWltYWdlX3VybBgKIAEoCRIOCgZhdXRob3IYCyABKAkSFgoOcmVwb3NpdG9yeV91cmwYDCABKAkiHwoLU3luY1JlcXVlc3QSEAoIdXNlcm5hbWUYASABKAkiNwoMU3luY1Jlc3BvbnNlEicKCHRpbWVsaW5lGAEgAygLMhUuYXBpLnYxLlRpbWVsaW5lRW50cnkiGAoWR2V0UmVwb3NpdG9yaWVzUmVxdWVzdCJCChdHZXRSZXBvc2l0b3JpZXNSZXNwb25zZRInCgh0aW1lbGluZRgBIAMoCzIVLmFwaS52MS5UaW1lbGluZUVudHJ5Ii4KG1Rvb2dsZVVzZXJQdWJsaWNGZWVkUmVxdWVzdBIPCgdlbmFibGVkGAEgASgIIjEKHFRvb2dsZVVzZXJQdWJsaWNGZWVkUmVzcG9uc2USEQoJcHVibGljX2lkGAEgASgJIhIKEEdldE15VXNlclJlcXVlc3QihwEKEUdldE15VXNlclJlc3BvbnNlEgoKAmlkGAEgASgFEjIKDmxhc3Rfc3luY2VkX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCglpc19wdWJsaWMYAyABKAgSEQoJcHVibGljX2lkGAQgASgJEgwKBG5hbWUYBSABKAkiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSIVChNSZWZyZXNoVG9rZW5SZXF1ZXN0Ir4BChRSZWZyZXNoVG9rZW5SZXNwb25zZRIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFQoNcmVmcmVzaF90b2tlbhgCIAEoCRI7ChdhY2Nlc3NfdG9rZW5fZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASPAoYcmVmcmVzaF90b2tlbl9leHBpcmVzX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcDLxAgoKQXBpU2VydmljZRIxCgRTeW5jEhMuYXBpLnYxLlN5bmNSZXF1ZXN0GhQuYXBpLnYxLlN5bmNSZXNwb25zZRJSCg9HZXRSZXBvc2l0b3JpZXMSHi5hcGkudjEuR2V0UmVwb3NpdG9yaWVzUmVxdWVzdBofLmFwaS52MS5HZXRSZXBvc2l0b3JpZXNSZXNwb25zZRJhChRUb29nbGVVc2VyUHVibGljRmVlZBIjLmFwaS52MS5Ub29nbGVVc2VyUHVibGljRmVlZFJlcXVlc3QaJC5hcGkudjEuVG9vZ2xlVXNlclB1YmxpY0ZlZWRSZXNwb25zZRJACglHZXRNeVVzZXISGC5hcGkudjEuR2V0TXlVc2VyUmVxdWVzdBoZLmFwaS52MS5HZXRNeVVzZXJSZXNwb25zZRI3CgZMb2dvdXQSFS5hcGkudjEuTG9nb3V0UmVxdWVzdBoWLmFwaS52MS5Mb2dvdXRSZXNwb25zZTJYCgtBdXRoU2VydmljZRJJCgxSZWZyZXNoVG9rZW4SGy5hcGkudjEuUmVmcmVzaFRva2VuUmVxdWVzdBocLmFwaS52MS5SZWZyZXNoVG9rZW5SZXNwb25zZUI9WjtnaXRodWIuY29tL2Jlbmphc3Blci9yZWxlYXNlcy5vbmUvaW50ZXJuYWwvZ2VuL2FwaS92MTthcGl2MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message api.v1.Release
@@ -299,6 +299,32 @@ export const GetMyUserResponseSchema: GenMessage<GetMyUserResponse> = /*@__PURE_
   messageDesc(file_api_v1_api, 10);
 
 /**
+ * @generated from message api.v1.LogoutRequest
+ */
+export type LogoutRequest = Message<"api.v1.LogoutRequest"> & {
+};
+
+/**
+ * Describes the message api.v1.LogoutRequest.
+ * Use `create(LogoutRequestSchema)` to create a new message.
+ */
+export const LogoutRequestSchema: GenMessage<LogoutRequest> = /*@__PURE__*/
+  messageDesc(file_api_v1_api, 11);
+
+/**
+ * @generated from message api.v1.LogoutResponse
+ */
+export type LogoutResponse = Message<"api.v1.LogoutResponse"> & {
+};
+
+/**
+ * Describes the message api.v1.LogoutResponse.
+ * Use `create(LogoutResponseSchema)` to create a new message.
+ */
+export const LogoutResponseSchema: GenMessage<LogoutResponse> = /*@__PURE__*/
+  messageDesc(file_api_v1_api, 12);
+
+/**
  * @generated from message api.v1.RefreshTokenRequest
  */
 export type RefreshTokenRequest = Message<"api.v1.RefreshTokenRequest"> & {
@@ -309,7 +335,7 @@ export type RefreshTokenRequest = Message<"api.v1.RefreshTokenRequest"> & {
  * Use `create(RefreshTokenRequestSchema)` to create a new message.
  */
 export const RefreshTokenRequestSchema: GenMessage<RefreshTokenRequest> = /*@__PURE__*/
-  messageDesc(file_api_v1_api, 11);
+  messageDesc(file_api_v1_api, 13);
 
 /**
  * @generated from message api.v1.RefreshTokenResponse
@@ -341,7 +367,7 @@ export type RefreshTokenResponse = Message<"api.v1.RefreshTokenResponse"> & {
  * Use `create(RefreshTokenResponseSchema)` to create a new message.
  */
 export const RefreshTokenResponseSchema: GenMessage<RefreshTokenResponse> = /*@__PURE__*/
-  messageDesc(file_api_v1_api, 12);
+  messageDesc(file_api_v1_api, 14);
 
 /**
  * @generated from service api.v1.ApiService
@@ -378,6 +404,14 @@ export const ApiService: GenService<{
     methodKind: "unary";
     input: typeof GetMyUserRequestSchema;
     output: typeof GetMyUserResponseSchema;
+  },
+  /**
+   * @generated from rpc api.v1.ApiService.Logout
+   */
+  logout: {
+    methodKind: "unary";
+    input: typeof LogoutRequestSchema;
+    output: typeof LogoutResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_api_v1_api, 0);

@@ -63,11 +63,15 @@ message GetMyUserResponse {
 	string name = 5;
 }
 
+message LogoutRequest {}
+message LogoutResponse {}
+
 service ApiService {
 	rpc Sync(SyncRequest) returns (SyncResponse);
 	rpc GetRepositories(GetRepositoriesRequest) returns (GetRepositoriesResponse);
 	rpc ToogleUserPublicFeed(ToogleUserPublicFeedRequest) returns (ToogleUserPublicFeedResponse);
 	rpc GetMyUser(GetMyUserRequest) returns (GetMyUserResponse);
+	rpc Logout(LogoutRequest) returns (LogoutResponse);
 }
 
 message RefreshTokenRequest {}

@@ -45,6 +45,8 @@ const (
 	ApiServiceToogleUserPublicFeedProcedure = "/api.v1.ApiService/ToogleUserPublicFeed"
 	// ApiServiceGetMyUserProcedure is the fully-qualified name of the ApiService's GetMyUser RPC.
 	ApiServiceGetMyUserProcedure = "/api.v1.ApiService/GetMyUser"
+	// ApiServiceLogoutProcedure is the fully-qualified name of the ApiService's Logout RPC.
+	ApiServiceLogoutProcedure = "/api.v1.ApiService/Logout"
 	// AuthServiceRefreshTokenProcedure is the fully-qualified name of the AuthService's RefreshToken
 	// RPC.
 	AuthServiceRefreshTokenProcedure = "/api.v1.AuthService/RefreshToken"
@@ -57,6 +59,7 @@ var (
 	apiServiceGetRepositoriesMethodDescriptor      = apiServiceServiceDescriptor.Methods().ByName("GetRepositories")
 	apiServiceToogleUserPublicFeedMethodDescriptor = apiServiceServiceDescriptor.Methods().ByName("ToogleUserPublicFeed")
 	apiServiceGetMyUserMethodDescriptor            = apiServiceServiceDescriptor.Methods().ByName("GetMyUser")
+	apiServiceLogoutMethodDescriptor               = apiServiceServiceDescriptor.Methods().ByName("Logout")
 	authServiceServiceDescriptor                   = v1.File_api_v1_api_proto.Services().ByName("AuthService")
 	authServiceRefreshTokenMethodDescriptor        = authServiceServiceDescriptor.Methods().ByName("RefreshToken")
 )
@@ -67,6 +70,7 @@ type ApiServiceClient interface {
 	GetRepositories(context.Context, *connect.Request[v1.GetRepositoriesRequest]) (*connect.Response[v1.GetRepositoriesResponse], error)
 	ToogleUserPublicFeed(context.Context, *connect.Request[v1.ToogleUserPublicFeedRequest]) (*connect.Response[v1.ToogleUserPublicFeedResponse], error)
 	GetMyUser(context.Context, *connect.Request[v1.GetMyUserRequest]) (*connect.Response[v1.GetMyUserResponse], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 }
 
 // NewApiServiceClient constructs a client for the api.v1.ApiService service. By default, it uses
@@ -103,6 +107,12 @@ func NewApiServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(apiServiceGetMyUserMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		logout: connect.NewClient[v1.LogoutRequest, v1.LogoutResponse](
+			httpClient,
+			baseURL+ApiServiceLogoutProcedure,
+			connect.WithSchema(apiServiceLogoutMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -112,6 +122,7 @@ type apiServiceClient struct {
 	getRepositories      *connect.Client[v1.GetRepositoriesRequest, v1.GetRepositoriesResponse]
 	toogleUserPublicFeed *connect.Client[v1.ToogleUserPublicFeedRequest, v1.ToogleUserPublicFeedResponse]
 	getMyUser            *connect.Client[v1.GetMyUserRequest, v1.GetMyUserResponse]
+	logout               *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
 }
 
 // Sync calls api.v1.ApiService.Sync.
@@ -134,12 +145,18 @@ func (c *apiServiceClient) GetMyUser(ctx context.Context, req *connect.Request[v
 	return c.getMyUser.CallUnary(ctx, req)
 }
 
+// Logout calls api.v1.ApiService.Logout.
+func (c *apiServiceClient) Logout(ctx context.Context, req *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return c.logout.CallUnary(ctx, req)
+}
+
 // ApiServiceHandler is an implementation of the api.v1.ApiService service.
 type ApiServiceHandler interface {
 	Sync(context.Context, *connect.Request[v1.SyncRequest]) (*connect.Response[v1.SyncResponse], error)
 	GetRepositories(context.Context, *connect.Request[v1.GetRepositoriesRequest]) (*connect.Response[v1.GetRepositoriesResponse], error)
 	ToogleUserPublicFeed(context.Context, *connect.Request[v1.ToogleUserPublicFeedRequest]) (*connect.Response[v1.ToogleUserPublicFeedResponse], error)
 	GetMyUser(context.Context, *connect.Request[v1.GetMyUserRequest]) (*connect.Response[v1.GetMyUserResponse], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 }
 
 // NewApiServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -172,6 +189,12 @@ func NewApiServiceHandler(svc ApiServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(apiServiceGetMyUserMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	apiServiceLogoutHandler := connect.NewUnaryHandler(
+		ApiServiceLogoutProcedure,
+		svc.Logout,
+		connect.WithSchema(apiServiceLogoutMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/api.v1.ApiService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ApiServiceSyncProcedure:
@@ -182,6 +205,8 @@ func NewApiServiceHandler(svc ApiServiceHandler, opts ...connect.HandlerOption) 
 			apiServiceToogleUserPublicFeedHandler.ServeHTTP(w, r)
 		case ApiServiceGetMyUserProcedure:
 			apiServiceGetMyUserHandler.ServeHTTP(w, r)
+		case ApiServiceLogoutProcedure:
+			apiServiceLogoutHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -205,6 +230,10 @@ func (UnimplementedApiServiceHandler) ToogleUserPublicFeed(context.Context, *con
 
 func (UnimplementedApiServiceHandler) GetMyUser(context.Context, *connect.Request[v1.GetMyUserRequest]) (*connect.Response[v1.GetMyUserResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ApiService.GetMyUser is not implemented"))
+}
+
+func (UnimplementedApiServiceHandler) Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ApiService.Logout is not implemented"))
 }
 
 // AuthServiceClient is a client for the api.v1.AuthService service.

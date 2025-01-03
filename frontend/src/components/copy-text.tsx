@@ -1,6 +1,7 @@
 import { Component, createSignal, Show } from 'solid-js'
 import { Button } from './ui/button'
 import { FiCheck, FiCopy } from 'solid-icons/fi'
+import { showToast } from './ui/toast'
 
 type CopyTextProps = {
 	text: string
@@ -13,6 +14,8 @@ const CopyText: Component<CopyTextProps> = props => {
 		navigator.clipboard.writeText(props.text)
 		setCopied(true)
 		setTimeout(() => setCopied(false), 3000)
+
+		showToast({ title: 'Copied to clipboard!', variant: 'success' })
 	}
 
 	return (

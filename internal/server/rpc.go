@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
@@ -212,6 +213,42 @@ func (s *RpcServer) RefreshToken(ctx context.Context, req *connect.Request[apiv1
 		Path:     "/",
 		SameSite: http.SameSiteNoneMode,
 		Expires:  *refreshTokenExpiresAt,
+	}
+
+	res.Header().Add("Set-Cookie", accessTokenCookie.String())
+	res.Header().Add("Set-Cookie", refreshTokenCookie.String())
+
+	return res, nil
+}
+
+func (s *RpcServer) Logout(ctx context.Context, req *connect.Request[apiv1.LogoutRequest]) (*connect.Response[apiv1.LogoutResponse], error) {
+	userID := authn.GetInfo(ctx)
+	if userID == nil {
+		return nil, errors.New("no user id in context")
+	}
+
+	res := connect.NewResponse(&apiv1.LogoutResponse{})
+
+	accessTokenCookie := &http.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		Domain:   s.baseURL.Hostname(),
+		SameSite: http.SameSiteNoneMode,
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+	}
+
+	refreshTokenCookie := &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		Domain:   s.baseURL.Hostname(),
+		Path:     "/",
+		SameSite: http.SameSiteNoneMode,
+		Expires:  time.Unix(0, 0),
 	}
 
 	res.Header().Add("Set-Cookie", accessTokenCookie.String())

@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"log"
 	"net/url"
-	"os"
 
 	"github.com/benjasper/releases.one/internal/config"
 	"github.com/benjasper/releases.one/internal/repository"
@@ -37,10 +36,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	baseURLString := os.Getenv("BASE_URL")
-	baseURL, err := url.Parse(baseURLString)
+	if cfg.IsProduction {
+		log.Println("Starting in production mode")
+	} else {
+		log.Println("Starting in development mode")
+	}
+
+	baseURL, err := url.Parse(cfg.BaseURL)
 	if err != nil {
-		log.Fatal("BASE_URL must be set and must be a valid URL")
+		log.Fatalf("BASE_URL must be set and must be a valid URL: %s", err)
 	}
 
 	githubCallbackURL := fmt.Sprintf("%s/github", baseURL.String())
