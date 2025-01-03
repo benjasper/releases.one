@@ -39,16 +39,16 @@ const Navbar: Component = () => {
 	}
 
 	return (
-		<div class="flex items-center justify-between space-y-2">
+		<div class="flex flex-col md:flex-row items-center justify-between space-y-2">
 			<Show when={user()?.isPublic}>
 				<Link rel="alternate" type="application/rss+xml" href={rssFeed()} />
 				<Link rel="alternate" type="application/atom+xml" href={atomFeed()} />
 			</Show>
-			<div>
+			<div class="flex flex-col w-full justify-start">
 				<h2 class="text-2xl font-bold tracking-tight">Welcome back!</h2>
 				<p class="text-muted-foreground">Here&apos;s a list of your recent releases!</p>
 			</div>
-			<div class="flex items-center space-x-4">
+			<div class="flex w-full items-center justify-end space-x-4">
 				<DarkModeToggle />
 				<Popover>
 					<PopoverTrigger as={Button<'button'>} class="cursor-pointer">
