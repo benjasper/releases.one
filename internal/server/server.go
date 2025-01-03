@@ -104,8 +104,8 @@ func (s *Server) Start() {
 	// most servers should mount both handlers.
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
 
-	mux.HandleFunc("/login/github", s.GetLoginWithGithub)
-	mux.HandleFunc("/github", s.GetLoginWithGithubCallback)
+	mux.HandleFunc("/api/login/github", s.GetLoginWithGithub)
+	mux.HandleFunc("/api/github", s.GetLoginWithGithubCallback)
 	mux.HandleFunc("/atom/{userID}", func(w http.ResponseWriter, r *http.Request) {
 		s.GetFeed(w, r, AtomFeedType)
 	})
