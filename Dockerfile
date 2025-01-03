@@ -7,6 +7,7 @@ COPY ./frontend /frontend
 WORKDIR /frontend
 
 FROM node-builder AS frontend-build
+ARG VITE_API_BASE_URL
 # RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 RUN pnpm install --frozen-lockfile
 RUN pnpm run build
