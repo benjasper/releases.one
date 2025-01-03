@@ -4,7 +4,6 @@ import { ApiService } from '~/lib/generated/api/v1/api_pb'
 import { createConnectTransport } from '@connectrpc/connect-web'
 import { ParentComponent } from 'solid-js/types/server/rendering.js'
 import { isAuthenticated } from '~/services/auth-service'
-import { useNavigate } from '@solidjs/router'
 
 const abortController = new AbortController()
 
@@ -19,8 +18,10 @@ const authInterceptor: Interceptor = next => async req => {
 	return await next(req)
 }
 
+const baseUrl = import.meta.env.VITE_API_BASE_URL
+
 const transport = createConnectTransport({
-	baseUrl: 'http://localhost',
+	baseUrl: baseUrl,
 	useBinaryFormat: true,
 	interceptors: [authInterceptor],
 	fetch: (url, options) => {
