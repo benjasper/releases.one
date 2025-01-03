@@ -22,7 +22,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/releases ./main.go
 
 FROM alpine:latest AS runtime
 COPY --from=go-builder /bin/releases /bin/releases
-EXPOSE 80
 CMD ["/bin/releases"]
 
 
