@@ -40,6 +40,10 @@ const Navbar: Component = () => {
 
 	return (
 		<div class="flex items-center justify-between space-y-2">
+			<Show when={user()?.isPublic}>
+				<Link rel="alternate" type="application/rss+xml" href={rssFeed()} />
+				<Link rel="alternate" type="application/atom+xml" href={atomFeed()} />
+			</Show>
 			<div>
 				<h2 class="text-2xl font-bold tracking-tight">Welcome back!</h2>
 				<p class="text-muted-foreground">Here&apos;s a list of your recent releases!</p>
@@ -71,10 +75,6 @@ const Navbar: Component = () => {
 							</div>
 
 							<Show when={user()?.isPublic}>
-								<Link rel="alternate" type="application/rss+xml" href={rssFeed()} />
-								<Link rel="alternate" type="application/atom+xml" href={atomFeed()} />
-							</Show>
-							<Show when={user()?.isPublic}>
 								<div class="flex w-full items-center rounded-md border p-4">
 									<div class="flex w-full flex-col space-y-2 justify-items-start max-w-72">
 										<p class="text-sm font-medium leading-none">URLs</p>
@@ -101,7 +101,7 @@ const Navbar: Component = () => {
 						</Avatar>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent>
-						<DropdownMenuLabel class='flex items-center gap-2'>
+						<DropdownMenuLabel class="flex items-center gap-2">
 							<FiUser class="w-4 h-4" />
 							{user()?.name}
 						</DropdownMenuLabel>
