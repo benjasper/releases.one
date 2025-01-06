@@ -468,10 +468,18 @@ FROM
   users
 WHERE
   last_synced_at < ?
+ORDER BY
+  last_synced_at DESC
+LIMIT ?
 `
 
-func (q *Queries) GetUsersInNeedOfAnUpdate(ctx context.Context, lastSyncedAt time.Time) ([]User, error) {
-	rows, err := q.db.QueryContext(ctx, getUsersInNeedOfAnUpdate, lastSyncedAt)
+type GetUsersInNeedOfAnUpdateParams struct {
+	LastSyncedAt time.Time
+	Limit        int32
+}
+
+func (q *Queries) GetUsersInNeedOfAnUpdate(ctx context.Context, arg GetUsersInNeedOfAnUpdateParams) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getUsersInNeedOfAnUpdate, arg.LastSyncedAt, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

@@ -62,7 +62,10 @@ SELECT
 FROM
   users
 WHERE
-  last_synced_at < ?;
+  last_synced_at < ?
+ORDER BY
+  last_synced_at DESC
+LIMIT ?;
 
 -- name: GetRepositoryByGithubID :one
 SELECT

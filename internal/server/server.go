@@ -184,7 +184,10 @@ func (s *Server) ScheduleJobs() {
 			interval = 8
 		}
 
-		users, err := s.repository.GetUsersInNeedOfAnUpdate(context.Background(), time.Now().Add(time.Hour*-time.Duration(interval)))
+		users, err := s.repository.GetUsersInNeedOfAnUpdate(context.Background(), repository.GetUsersInNeedOfAnUpdateParams{
+			LastSyncedAt: time.Now().Add(time.Hour * -time.Duration(interval)),
+			Limit:        100, // How many users to sync at a time
+		})
 		if err != nil {
 			log.Fatal(err)
 		}
