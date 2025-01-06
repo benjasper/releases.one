@@ -10,28 +10,20 @@ import {
 	Show,
 } from 'solid-js'
 import { useConnect } from '~/context/connect-context'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/card'
-import { Avatar, AvatarFallback } from '~/components/ui/avatar'
+import { Card, CardContent, CardFooter, CardHeader } from '~/components/ui/card'
 import { timestampDate } from '@bufbuild/protobuf/wkt'
 import { Button, buttonVariants } from '~/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import { Switch, SwitchControl, SwitchDescription, SwitchLabel, SwitchThumb } from '~/components/ui/switch'
 import { TextField, TextFieldInput } from '~/components/ui/text-field'
-import CopyText from '~/components/copy-text'
-import DarkModeToggle from '~/components/dark-mode-toggle'
 import { FiArrowUp, FiExternalLink, FiRss } from 'solid-icons/fi'
 import { formatDistance } from 'date-fns/formatDistance'
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/components/ui/tooltip'
-import { Link } from '@solidjs/meta'
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from '~/components/ui/dropdown-menu'
 import Navbar from '~/components/navbar'
+import { Skeleton } from '~/components/ui/skeleton'
+
+const TimelineSkeleton: Component = () => {
+	return <For each={Array(10)}>{() => <Skeleton class="rounded-lg w-full max-w-120" height={400} />}</For>
+}
 
 const TimelinePage: Component = () => {
 	const connect = useConnect()
@@ -97,51 +89,55 @@ const TimelinePage: Component = () => {
 						<SwitchLabel class="w-auto">Show release description</SwitchLabel>
 					</Switch>
 				</div>
-				<For each={filteredTimeline()}>
-					{timelineItem => (
-						<Card class="mx-auto w-full max-w-120 transition-shadow duration-200">
-							<CardHeader class="!p-0">
-								<img
-									class="rounded-t-lg aspect-2/1"
-									src={timelineItem.imageUrl}
-									loading="lazy"
-									alt={timelineItem.name}
-								/>
-							</CardHeader>
-							<CardContent class="flex flex-col !pb-0 pt-4 prose dark:prose-invert">
-								<a
-									href={timelineItem.repositoryUrl}
-									class="flex items-center no-underline hover:underline group"
-									target="_blank"
-									rel="noopener noreferrer">
-									<span class="font-normal">{timelineItem.repositoryName}</span>
-									<FiExternalLink class="opacity-0 inline-block ml-1.5 text-gray-400 w-3 transition-all group-hover:opacity-100" />
-								</a>
-								<a
-									href={timelineItem.url}
-									class="flex items-center no-underline hover:underline group"
-									target="_blank"
-									rel="noopener noreferrer">
-									<h2 class="!mt-0 !mb-0 font-normal inline-block">{timelineItem.name}</h2>
-									<FiExternalLink class="opacity-0 ml-1.5 text-gray-400 w-4 transition-all group-hover:opacity-100" />
-								</a>
-								<Show when={descriptionEnabled()}>
-									<div class="pt-2 prose-sm" innerHTML={timelineItem.description}></div>
-								</Show>
-							</CardContent>
-							<CardFooter class="flex justify-between text-muted-foreground !pt-2 text-sm">
-								<Tooltip>
-									<TooltipTrigger>
-										{calculateDuration(timestampDate(timelineItem.releasedAt!))}
-									</TooltipTrigger>
-									<TooltipContent>
-										{timestampDate(timelineItem.releasedAt!).toLocaleString()}
-									</TooltipContent>
-								</Tooltip>
-							</CardFooter>
-						</Card>
-					)}
-				</For>
+				<div class="flex flex-col gap-4 items-center justify-center">
+					<Show when={!timeline.loading} fallback={<TimelineSkeleton />}>
+						<For each={filteredTimeline()}>
+							{timelineItem => (
+								<Card class="w-full max-w-120 transition-shadow duration-200">
+									<CardHeader class="!p-0">
+										<img
+											class="rounded-t-lg aspect-2/1 object-cover"
+											src={timelineItem.imageUrl}
+											loading="lazy"
+											alt={timelineItem.name}
+										/>
+									</CardHeader>
+									<CardContent class="flex flex-col !pb-0 pt-4 prose dark:prose-invert">
+										<a
+											href={timelineItem.repositoryUrl}
+											class="flex items-center no-underline hover:underline group"
+											target="_blank"
+											rel="noopener noreferrer">
+											<span class="font-normal">{timelineItem.repositoryName}</span>
+											<FiExternalLink class="opacity-0 inline-block ml-1.5 text-gray-400 w-3 transition-all group-hover:opacity-100" />
+										</a>
+										<a
+											href={timelineItem.url}
+											class="flex items-center no-underline hover:underline group"
+											target="_blank"
+											rel="noopener noreferrer">
+											<h2 class="!mt-0 !mb-0 font-normal inline-block">{timelineItem.name}</h2>
+											<FiExternalLink class="opacity-0 ml-1.5 text-gray-400 w-4 transition-all group-hover:opacity-100" />
+										</a>
+										<Show when={descriptionEnabled()}>
+											<div class="pt-2 prose-sm" innerHTML={timelineItem.description}></div>
+										</Show>
+									</CardContent>
+									<CardFooter class="flex justify-between text-muted-foreground !pt-2 text-sm">
+										<Tooltip>
+											<TooltipTrigger>
+												{calculateDuration(timestampDate(timelineItem.releasedAt!))}
+											</TooltipTrigger>
+											<TooltipContent>
+												{timestampDate(timelineItem.releasedAt!).toLocaleString()}
+											</TooltipContent>
+										</Tooltip>
+									</CardFooter>
+								</Card>
+							)}
+						</For>
+					</Show>
+				</div>
 			</div>
 		</>
 	)
