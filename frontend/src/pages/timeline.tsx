@@ -40,7 +40,14 @@ const TimelinePage: Component = () => {
 		setIsScrollingDown(window.scrollY > 20)
 	}
 
-	const refetchTimelineListener = () => refetchTimeline()
+	// Refetch timeline after it's one minute old, when the user is coming back to the page
+	const lastRefresh = new Date()
+	const refetchTimelineListener = () => {
+		if (lastRefresh.getTime() + 1000 * 60  < Date.now()) {
+			refetchTimeline()
+			lastRefresh.setTime(Date.now())
+		}
+	}
 
 	onMount(() => {
 		window.addEventListener('scroll', handleScroll)
@@ -122,7 +129,7 @@ const TimelinePage: Component = () => {
 											<FiExternalLink class="opacity-0 ml-1.5 text-gray-400 w-4 transition-all group-hover:opacity-100" />
 										</a>
 										<Show when={descriptionEnabled()}>
-											<div class="pt-2 prose-sm" innerHTML={timelineItem.description}></div>
+											<div class="pt-2 prose-sm overflow-hidden break-words" innerHTML={timelineItem.description}></div>
 										</Show>
 									</CardContent>
 									<CardFooter class="flex justify-between text-muted-foreground !pt-2 text-sm">
