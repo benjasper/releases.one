@@ -1,7 +1,5 @@
 import {
 	Component,
-	createEffect,
-	createMemo,
 	createResource,
 	createSignal,
 	For,
@@ -12,14 +10,14 @@ import {
 import { useConnect } from '~/context/connect-context'
 import { Card, CardContent, CardFooter, CardHeader } from '~/components/ui/card'
 import { timestampDate } from '@bufbuild/protobuf/wkt'
-import { Button, buttonVariants } from '~/components/ui/button'
-import { Switch, SwitchControl, SwitchDescription, SwitchLabel, SwitchThumb } from '~/components/ui/switch'
+import { Button } from '~/components/ui/button'
+import { Switch, SwitchControl, SwitchLabel, SwitchThumb } from '~/components/ui/switch'
 import { TextField, TextFieldInput } from '~/components/ui/text-field'
-import { FiArrowUp, FiExternalLink, FiRss } from 'solid-icons/fi'
 import { formatDistance } from 'date-fns/formatDistance'
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/components/ui/tooltip'
 import Navbar from '~/components/navbar'
 import { Skeleton } from '~/components/ui/skeleton'
+import { FiArrowUp, FiExternalLink } from 'solid-icons/fi'
 
 const TimelineSkeleton: Component = () => {
 	return <For each={Array(10)}>{() => <Skeleton class="rounded-lg w-full max-w-120" height={400} />}</For>
@@ -27,7 +25,7 @@ const TimelineSkeleton: Component = () => {
 
 const TimelinePage: Component = () => {
 	const connect = useConnect()
-	const [timeline] = createResource(() => connect.getRepositories({}))
+	const [timeline, {refetch: refetchTimeline}] = createResource(() => connect.getRepositories({}))
 
 	const [search, setSearch] = createSignal('')
 	const [descriptionEnabled, setDescriptionEnabled] = createSignal(true)
@@ -42,12 +40,16 @@ const TimelinePage: Component = () => {
 		setIsScrollingDown(window.scrollY > 20)
 	}
 
+	const refetchTimelineListener = () => refetchTimeline()
+
 	onMount(() => {
 		window.addEventListener('scroll', handleScroll)
+		window.addEventListener('focus', () => refetchTimelineListener())
 	})
 
 	onCleanup(() => {
 		window.removeEventListener('scroll', handleScroll)
+		window.removeEventListener('focus', () => refetchTimelineListener())
 	})
 
 	setInterval(() => {
