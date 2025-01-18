@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"text/template"
 	"time"
 
@@ -325,6 +326,12 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 
 func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedType) {
 	userID := r.PathValue("userID")
+	prereleaseString := r.URL.Query().Get("prerelease")
+
+	prerelase, err := strconv.ParseBool(prereleaseString)
+	if err != nil {
+		prerelase = true
+	}
 
 	user, err := s.repository.GetUserByPublicID(r.Context(), userID)
 	if err != nil {
@@ -338,7 +345,10 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedTy
 		return
 	}
 
-	releases, err := s.repository.GetReleasesForUser(r.Context(), user.ID)
+	releases, err := s.repository.GetReleasesForUser(r.Context(), repository.GetReleasesForUserParams{
+		UserID: user.ID,
+		IsPrerelease: prerelase,
+	})
 	if err != nil {
 		http.Error(w, "Failed to retrieve releases: "+err.Error(), http.StatusInternalServerError)
 		return

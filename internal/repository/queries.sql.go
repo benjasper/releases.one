@@ -203,11 +203,17 @@ FROM
 WHERE
   ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ?
   AND ` + "`" + `users` + "`" + `.` + "`" + `is_public` + "`" + ` = true
+  AND ` + "`" + `is_prerelease` + "`" + ` = ?
 ORDER BY
   releases.released_at DESC
 LIMIT
   100
 `
+
+type GetReleasesForUserParams struct {
+	UserID       int32
+	IsPrerelease bool
+}
 
 type GetReleasesForUserRow struct {
 	ID                 int32
@@ -230,8 +236,8 @@ type GetReleasesForUserRow struct {
 	RepositoryUrl      sql.NullString
 }
 
-func (q *Queries) GetReleasesForUser(ctx context.Context, userID int32) ([]GetReleasesForUserRow, error) {
-	rows, err := q.db.QueryContext(ctx, getReleasesForUser, userID)
+func (q *Queries) GetReleasesForUser(ctx context.Context, arg GetReleasesForUserParams) ([]GetReleasesForUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, getReleasesForUser, arg.UserID, arg.IsPrerelease)
 	if err != nil {
 		return nil, err
 	}
@@ -296,11 +302,17 @@ FROM
   INNER JOIN ` + "`" + `repository_stars` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repository_stars` + "`" + `.` + "`" + `repository_id` + "`" + `
 WHERE
   ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ?
+  AND ` + "`" + `is_prerelease` + "`" + ` = ?
 ORDER BY
   releases.released_at DESC
 LIMIT
   100
 `
+
+type GetReleasesForUserShortDescriptionParams struct {
+	UserID       int32
+	IsPrerelease bool
+}
 
 type GetReleasesForUserShortDescriptionRow struct {
 	ID               int32
@@ -321,8 +333,8 @@ type GetReleasesForUserShortDescriptionRow struct {
 	RepositoryUrl    sql.NullString
 }
 
-func (q *Queries) GetReleasesForUserShortDescription(ctx context.Context, userID int32) ([]GetReleasesForUserShortDescriptionRow, error) {
-	rows, err := q.db.QueryContext(ctx, getReleasesForUserShortDescription, userID)
+func (q *Queries) GetReleasesForUserShortDescription(ctx context.Context, arg GetReleasesForUserShortDescriptionParams) ([]GetReleasesForUserShortDescriptionRow, error) {
+	rows, err := q.db.QueryContext(ctx, getReleasesForUserShortDescription, arg.UserID, arg.IsPrerelease)
 	if err != nil {
 		return nil, err
 	}
@@ -470,7 +482,8 @@ WHERE
   last_synced_at < ?
 ORDER BY
   last_synced_at DESC
-LIMIT ?
+LIMIT
+  ?
 `
 
 type GetUsersInNeedOfAnUpdateParams struct {

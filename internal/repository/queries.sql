@@ -65,7 +65,8 @@ WHERE
   last_synced_at < ?
 ORDER BY
   last_synced_at DESC
-LIMIT ?;
+LIMIT
+  ?;
 
 -- name: GetRepositoryByGithubID :one
 SELECT
@@ -208,6 +209,7 @@ FROM
 WHERE
   `repository_stars`.`user_id` = ?
   AND `users`.`is_public` = true
+  AND `is_prerelease` = ?
 ORDER BY
   releases.released_at DESC
 LIMIT
@@ -237,6 +239,7 @@ FROM
   INNER JOIN `repository_stars` ON `releases`.`repository_id` = `repository_stars`.`repository_id`
 WHERE
   `repository_stars`.`user_id` = ?
+  AND `is_prerelease` = ?
 ORDER BY
   releases.released_at DESC
 LIMIT

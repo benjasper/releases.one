@@ -1,5 +1,6 @@
 import {
 	Component,
+	createMemo,
 	createResource,
 	createSignal,
 	For,
@@ -24,13 +25,14 @@ const TimelineSkeleton: Component = () => {
 }
 
 const TimelinePage: Component = () => {
-	const connect = useConnect()
-	const [timeline, {refetch: refetchTimeline}] = createResource(() => connect.getRepositories({}))
-
 	const [search, setSearch] = createSignal('')
 	const [descriptionEnabled, setDescriptionEnabled] = createSignal(true)
+	const [prereleaseEnabled, setPrereleaseEnabled] = createSignal(true)
 	const [isScrollingDown, setIsScrollingDown] = createSignal(false)
 	const [now, setNow] = createSignal(Date.now())
+
+	const connect = useConnect()
+	const [timeline, {refetch: refetchTimeline}] = createResource(() => ({prerelease: prereleaseEnabled()}), (args) => connect.getRepositories(args))
 
 	const filteredTimeline = () =>
 		timeline()?.timeline.filter(x => x.repositoryName.toLowerCase().includes(search().toLowerCase())) ?? []
@@ -96,6 +98,16 @@ const TimelinePage: Component = () => {
 							<SwitchThumb />
 						</SwitchControl>
 						<SwitchLabel class="w-auto">Show release description</SwitchLabel>
+					</Switch>
+
+					<Switch
+						class="items-center flex gap-2"
+						checked={prereleaseEnabled()}
+						onChange={setPrereleaseEnabled}>
+						<SwitchControl>
+							<SwitchThumb />
+						</SwitchControl>
+						<SwitchLabel class="w-auto">Show prereleases</SwitchLabel>
 					</Switch>
 				</div>
 				<div class="flex flex-col gap-4 items-center justify-center">

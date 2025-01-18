@@ -42,7 +42,9 @@ message SyncResponse {
 	repeated TimelineEntry timeline = 1;
 }
 
-message GetRepositoriesRequest {}
+message GetRepositoriesRequest {
+	bool prerelease = 1;
+}
 message GetRepositoriesResponse {
 	repeated TimelineEntry timeline = 1;
 }

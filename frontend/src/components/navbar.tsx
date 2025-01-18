@@ -1,11 +1,11 @@
-import { Component, createMemo, createResource, Show } from 'solid-js'
+import { Component, createMemo, createResource, createSignal, Show } from 'solid-js'
 import DarkModeToggle from './dark-mode-toggle'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { Button } from './ui/button'
 import { FiLogOut, FiRss, FiUser } from 'solid-icons/fi'
 import { CardDescription, CardTitle } from './ui/card'
 import CopyText from './copy-text'
-import { Switch, SwitchControl, SwitchThumb } from './ui/switch'
+import { Switch, SwitchControl, SwitchLabel, SwitchThumb } from './ui/switch'
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -24,9 +24,17 @@ const Navbar: Component = () => {
 	const navigate = useNavigate()
 
 	const [user, { refetch: refetchUser }] = createResource(() => connect.getMyUser({}))
+	const [prereleaseEnabled, setPrereleaseEnabled] = createSignal(true)
 
-	const rssFeed = createMemo(() => `${import.meta.env.VITE_API_BASE_URL}/rss/${user()?.publicId ?? ''}`)
-	const atomFeed = createMemo(() => `${import.meta.env.VITE_API_BASE_URL}/atom/${user()?.publicId ?? ''}`)
+	const query = createMemo(() => {
+		const params = new URLSearchParams()
+		params.set('prerelease', prereleaseEnabled().toString())
+
+		return params.toString()
+	})
+
+	const rssFeed = createMemo(() => `${import.meta.env.VITE_API_BASE_URL}/rss/${user()?.publicId ?? ''}?${query()}`)
+	const atomFeed = createMemo(() => `${import.meta.env.VITE_API_BASE_URL}/atom/${user()?.publicId ?? ''}?${query()}`)
 
 	const setUserPublic = async (isPublic: boolean) => {
 		await connect.toogleUserPublicFeed({ enabled: isPublic })
@@ -76,11 +84,20 @@ const Navbar: Component = () => {
 
 							<Show when={user()?.isPublic}>
 								<div class="flex w-full items-center rounded-md border p-4">
-									<div class="flex w-full flex-col space-y-2 justify-items-start max-w-72">
+									<div class="flex w-full flex-col space-y-3 justify-items-start max-w-72">
 										<p class="text-sm font-medium leading-none">URLs</p>
 										<p class="text-sm text-muted-foreground">
 											Get this feed as a RSS or Atom feed.
 										</p>
+										<Switch
+											class="items-center flex gap-2 justify-between"
+											checked={prereleaseEnabled()}
+											onChange={setPrereleaseEnabled}>
+											<SwitchLabel class="w-auto">Show prereleases</SwitchLabel>
+											<SwitchControl>
+												<SwitchThumb />
+											</SwitchControl>
+										</Switch>
 										<span class="text-sm">RSS</span>
 										<CopyText text={rssFeed()} />
 										<span class="text-sm">Atom</span>

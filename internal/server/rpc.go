@@ -60,7 +60,10 @@ func (s *RpcServer) Sync(ctx context.Context, req *connect.Request[apiv1.SyncReq
 		return nil, errors.Join(err, errors.New("failed to sync user"))
 	}
 
-	releases, err := s.repository.GetReleasesForUserShortDescription(ctx, user.ID)
+	releases, err := s.repository.GetReleasesForUserShortDescription(ctx, repository.GetReleasesForUserShortDescriptionParams{
+		UserID: user.ID,
+		IsPrerelease: true,
+	})
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to retrieve releases"))
 	}
@@ -104,7 +107,10 @@ func (s *RpcServer) GetRepositories(ctx context.Context, req *connect.Request[ap
 		return nil, errors.Join(err, errors.New("failed to retrieve user"))
 	}
 
-	releases, err := s.repository.GetReleasesForUserShortDescription(ctx, user.ID)
+	releases, err := s.repository.GetReleasesForUserShortDescription(ctx, repository.GetReleasesForUserShortDescriptionParams{
+		UserID: user.ID,
+		IsPrerelease: req.Msg.Prerelease,
+	})
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to retrieve releases"))
 	}
