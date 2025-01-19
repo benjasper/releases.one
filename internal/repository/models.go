@@ -55,4 +55,5 @@ type User struct {
 	LastSyncedAt time.Time
 	PublicID     string
 	IsPublic     bool
+	IsOnboarded  bool
 }

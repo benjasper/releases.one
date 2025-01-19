@@ -8,22 +8,32 @@ import { ColorModeProvider, ColorModeScript, createLocalStorageManager } from '@
 import { MetaProvider } from '@solidjs/meta'
 import LoginSuccessPage from './pages/login-success'
 import { Toaster } from './components/ui/toast'
+import LandingPage from './pages/landing'
+import { StateProvider } from './context/state-context'
+import { OnboardingPage, OnboardingStepOne, OnboardingStepTwo } from './pages/onboarding'
 
 const App: Component = () => {
 	const storageManager = createLocalStorageManager('vite-ui-theme')
 	return (
 		<MetaProvider>
 			<ConnectProvider>
-				<ColorModeScript storageType={storageManager.type} />
-				<ColorModeProvider storageManager={storageManager}>
-					<Router explicitLinks={true}>
-						<Route path="/login/success" component={LoginSuccessPage} />
-						<Route path="/login" component={LoginPage} />
-						<Route path="/" component={TimelinePage} />
-						<Route path="*" component={LoginPage} />
-					</Router>
-					<Toaster />
-				</ColorModeProvider>
+				<StateProvider>
+					<ColorModeScript storageType={storageManager.type} />
+					<ColorModeProvider storageManager={storageManager}>
+						<Router explicitLinks={true}>
+							<Route path="/" component={LandingPage} />
+							<Route path="/onboarding" component={OnboardingPage}>
+								<Route path="/" component={OnboardingStepOne} />
+								<Route path="/2" component={OnboardingStepTwo} />
+							</Route>
+							<Route path="/login/success" component={LoginSuccessPage} />
+							<Route path="/login" component={LoginPage} />
+							<Route path="/timeline" component={TimelinePage} />
+							<Route path="*" component={LoginPage} />
+						</Router>
+						<Toaster />
+					</ColorModeProvider>
+				</StateProvider>
 			</ConnectProvider>
 		</MetaProvider>
 	)

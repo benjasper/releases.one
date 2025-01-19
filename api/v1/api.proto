@@ -40,6 +40,7 @@ message SyncRequest {
 }
 message SyncResponse {
 	repeated TimelineEntry timeline = 1;
+	int32 repositoryCount = 2;
 }
 
 message GetRepositoriesRequest {
@@ -63,10 +64,14 @@ message GetMyUserResponse {
 	bool is_public = 3;
 	string public_id = 4;
 	string name = 5;
+	bool is_onboarded = 6;
 }
 
 message LogoutRequest {}
 message LogoutResponse {}
+
+message ToggleUserOnboardedRequest {}
+message ToggleUserOnboardedResponse {}
 
 service ApiService {
 	rpc Sync(SyncRequest) returns (SyncResponse);
@@ -74,6 +79,7 @@ service ApiService {
 	rpc ToogleUserPublicFeed(ToogleUserPublicFeedRequest) returns (ToogleUserPublicFeedResponse);
 	rpc GetMyUser(GetMyUserRequest) returns (GetMyUserResponse);
 	rpc Logout(LogoutRequest) returns (LogoutResponse);
+	rpc ToggleUserOnboarded(ToggleUserOnboardedRequest) returns (ToggleUserOnboardedResponse);
 }
 
 message RefreshTokenRequest {}

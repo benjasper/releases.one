@@ -41,6 +41,13 @@ SET
 WHERE
   id = ?;
 
+-- name: UpdateUserOnboarded :exec
+UPDATE users
+SET
+  is_onboarded = ?
+WHERE
+  id = ?;
+
 -- name: UpdateUserSyncedAt :exec
 UPDATE users
 SET
@@ -106,6 +113,16 @@ SET
   hash = ?
 WHERE
   id = ?;
+
+-- name: FindRepositoriesByUser :many
+SELECT
+  *
+FROM
+  repositories
+LEFT JOIN
+  repository_stars ON repositories.id = repository_stars.repository_id
+WHERE
+  user_id = ?;
 
 -- name: InsertRepositoryStar :exec
 INSERT INTO

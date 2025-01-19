@@ -6,6 +6,7 @@ CREATE TABLE `users` (
   `last_synced_at` DATETIME NOT NULL,
   `public_id` VARCHAR(255) NOT NULL,
   `is_public` BOOLEAN NOT NULL,
+  `is_onboarded` BOOLEAN NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `github_id` (`github_id`),
   UNIQUE INDEX `public_id` (`public_id`)

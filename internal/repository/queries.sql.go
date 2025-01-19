@@ -126,6 +126,74 @@ func (q *Queries) DeleteRepositoryStarsUpdatedBefore(ctx context.Context, arg De
 	return q.db.ExecContext(ctx, deleteRepositoryStarsUpdatedBefore, arg.UpdatedAt, arg.UserID)
 }
 
+const findRepositoriesByUser = `-- name: FindRepositoriesByUser :many
+SELECT
+  id, github_id, name, url, private, repositories.created_at, repositories.updated_at, last_synced_at, image_url, image_size, hash, repository_id, user_id, repository_stars.created_at, repository_stars.updated_at
+FROM
+  repositories
+LEFT JOIN
+  repository_stars ON repositories.id = repository_stars.repository_id
+WHERE
+  user_id = ?
+`
+
+type FindRepositoriesByUserRow struct {
+	ID           int32
+	GithubID     string
+	Name         string
+	Url          string
+	Private      bool
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	LastSyncedAt time.Time
+	ImageUrl     string
+	ImageSize    int32
+	Hash         uint64
+	RepositoryID sql.NullInt32
+	UserID       sql.NullInt32
+	CreatedAt_2  sql.NullTime
+	UpdatedAt_2  sql.NullTime
+}
+
+func (q *Queries) FindRepositoriesByUser(ctx context.Context, userID int32) ([]FindRepositoriesByUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, findRepositoriesByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FindRepositoriesByUserRow
+	for rows.Next() {
+		var i FindRepositoriesByUserRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.GithubID,
+			&i.Name,
+			&i.Url,
+			&i.Private,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastSyncedAt,
+			&i.ImageUrl,
+			&i.ImageSize,
+			&i.Hash,
+			&i.RepositoryID,
+			&i.UserID,
+			&i.CreatedAt_2,
+			&i.UpdatedAt_2,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getReleases = `-- name: GetReleases :many
 SELECT
   github_id, id, repository_id, name, url, tag_name, description, description_short, author, is_prerelease, released_at, created_at, updated_at, hash
@@ -403,7 +471,7 @@ func (q *Queries) GetRepositoryByGithubID(ctx context.Context, githubID string) 
 
 const getUserByGitHubID = `-- name: GetUserByGitHubID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id, is_public
+  id, username, github_id, github_token, last_synced_at, public_id, is_public, is_onboarded
 FROM
   users
 WHERE
@@ -421,13 +489,14 @@ func (q *Queries) GetUserByGitHubID(ctx context.Context, githubID uint64) (User,
 		&i.LastSyncedAt,
 		&i.PublicID,
 		&i.IsPublic,
+		&i.IsOnboarded,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id, is_public
+  id, username, github_id, github_token, last_synced_at, public_id, is_public, is_onboarded
 FROM
   users
 WHERE
@@ -445,13 +514,14 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.LastSyncedAt,
 		&i.PublicID,
 		&i.IsPublic,
+		&i.IsOnboarded,
 	)
 	return i, err
 }
 
 const getUserByPublicID = `-- name: GetUserByPublicID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id, is_public
+  id, username, github_id, github_token, last_synced_at, public_id, is_public, is_onboarded
 FROM
   users
 WHERE
@@ -469,13 +539,14 @@ func (q *Queries) GetUserByPublicID(ctx context.Context, publicID string) (User,
 		&i.LastSyncedAt,
 		&i.PublicID,
 		&i.IsPublic,
+		&i.IsOnboarded,
 	)
 	return i, err
 }
 
 const getUsersInNeedOfAnUpdate = `-- name: GetUsersInNeedOfAnUpdate :many
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id, is_public
+  id, username, github_id, github_token, last_synced_at, public_id, is_public, is_onboarded
 FROM
   users
 WHERE
@@ -508,6 +579,7 @@ func (q *Queries) GetUsersInNeedOfAnUpdate(ctx context.Context, arg GetUsersInNe
 			&i.LastSyncedAt,
 			&i.PublicID,
 			&i.IsPublic,
+			&i.IsOnboarded,
 		); err != nil {
 			return nil, err
 		}
@@ -724,6 +796,24 @@ type UpdateUserIsPublicParams struct {
 
 func (q *Queries) UpdateUserIsPublic(ctx context.Context, arg UpdateUserIsPublicParams) error {
 	_, err := q.db.ExecContext(ctx, updateUserIsPublic, arg.IsPublic, arg.ID)
+	return err
+}
+
+const updateUserOnboarded = `-- name: UpdateUserOnboarded :exec
+UPDATE users
+SET
+  is_onboarded = ?
+WHERE
+  id = ?
+`
+
+type UpdateUserOnboardedParams struct {
+	IsOnboarded bool
+	ID          int32
+}
+
+func (q *Queries) UpdateUserOnboarded(ctx context.Context, arg UpdateUserOnboardedParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserOnboarded, arg.IsOnboarded, arg.ID)
 	return err
 }
 
