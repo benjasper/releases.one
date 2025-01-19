@@ -9,7 +9,7 @@ const LoginSuccessPage = () => {
 	const checkAuth = async () => {
 		if (await isAuthenticated()) {
 			showToast({ title: 'Logged in successfully!', variant: 'success' })
-			navigate('/')
+			navigate('/login')
 			return
 		}
 

@@ -49,6 +49,10 @@ async function refreshToken(): Promise<boolean> {
 	return true
 }
 
+export function logoutAndRemoveAuthData() {
+	localStorage.removeItem(ACCESS_TOKEN_EXPIRES_AT)
+}
+
 export default async function tryGetAsync<T>(getter: () => Promise<T>): Promise<
 	| {
 			success: true

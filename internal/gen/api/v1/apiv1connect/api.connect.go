@@ -47,6 +47,9 @@ const (
 	ApiServiceGetMyUserProcedure = "/api.v1.ApiService/GetMyUser"
 	// ApiServiceLogoutProcedure is the fully-qualified name of the ApiService's Logout RPC.
 	ApiServiceLogoutProcedure = "/api.v1.ApiService/Logout"
+	// ApiServiceToggleUserOnboardedProcedure is the fully-qualified name of the ApiService's
+	// ToggleUserOnboarded RPC.
+	ApiServiceToggleUserOnboardedProcedure = "/api.v1.ApiService/ToggleUserOnboarded"
 	// AuthServiceRefreshTokenProcedure is the fully-qualified name of the AuthService's RefreshToken
 	// RPC.
 	AuthServiceRefreshTokenProcedure = "/api.v1.AuthService/RefreshToken"
@@ -59,6 +62,7 @@ type ApiServiceClient interface {
 	ToogleUserPublicFeed(context.Context, *connect.Request[v1.ToogleUserPublicFeedRequest]) (*connect.Response[v1.ToogleUserPublicFeedResponse], error)
 	GetMyUser(context.Context, *connect.Request[v1.GetMyUserRequest]) (*connect.Response[v1.GetMyUserResponse], error)
 	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
+	ToggleUserOnboarded(context.Context, *connect.Request[v1.ToggleUserOnboardedRequest]) (*connect.Response[v1.ToggleUserOnboardedResponse], error)
 }
 
 // NewApiServiceClient constructs a client for the api.v1.ApiService service. By default, it uses
@@ -102,6 +106,12 @@ func NewApiServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(apiServiceMethods.ByName("Logout")),
 			connect.WithClientOptions(opts...),
 		),
+		toggleUserOnboarded: connect.NewClient[v1.ToggleUserOnboardedRequest, v1.ToggleUserOnboardedResponse](
+			httpClient,
+			baseURL+ApiServiceToggleUserOnboardedProcedure,
+			connect.WithSchema(apiServiceMethods.ByName("ToggleUserOnboarded")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -112,6 +122,7 @@ type apiServiceClient struct {
 	toogleUserPublicFeed *connect.Client[v1.ToogleUserPublicFeedRequest, v1.ToogleUserPublicFeedResponse]
 	getMyUser            *connect.Client[v1.GetMyUserRequest, v1.GetMyUserResponse]
 	logout               *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
+	toggleUserOnboarded  *connect.Client[v1.ToggleUserOnboardedRequest, v1.ToggleUserOnboardedResponse]
 }
 
 // Sync calls api.v1.ApiService.Sync.
@@ -139,6 +150,11 @@ func (c *apiServiceClient) Logout(ctx context.Context, req *connect.Request[v1.L
 	return c.logout.CallUnary(ctx, req)
 }
 
+// ToggleUserOnboarded calls api.v1.ApiService.ToggleUserOnboarded.
+func (c *apiServiceClient) ToggleUserOnboarded(ctx context.Context, req *connect.Request[v1.ToggleUserOnboardedRequest]) (*connect.Response[v1.ToggleUserOnboardedResponse], error) {
+	return c.toggleUserOnboarded.CallUnary(ctx, req)
+}
+
 // ApiServiceHandler is an implementation of the api.v1.ApiService service.
 type ApiServiceHandler interface {
 	Sync(context.Context, *connect.Request[v1.SyncRequest]) (*connect.Response[v1.SyncResponse], error)
@@ -146,6 +162,7 @@ type ApiServiceHandler interface {
 	ToogleUserPublicFeed(context.Context, *connect.Request[v1.ToogleUserPublicFeedRequest]) (*connect.Response[v1.ToogleUserPublicFeedResponse], error)
 	GetMyUser(context.Context, *connect.Request[v1.GetMyUserRequest]) (*connect.Response[v1.GetMyUserResponse], error)
 	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
+	ToggleUserOnboarded(context.Context, *connect.Request[v1.ToggleUserOnboardedRequest]) (*connect.Response[v1.ToggleUserOnboardedResponse], error)
 }
 
 // NewApiServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -185,6 +202,12 @@ func NewApiServiceHandler(svc ApiServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(apiServiceMethods.ByName("Logout")),
 		connect.WithHandlerOptions(opts...),
 	)
+	apiServiceToggleUserOnboardedHandler := connect.NewUnaryHandler(
+		ApiServiceToggleUserOnboardedProcedure,
+		svc.ToggleUserOnboarded,
+		connect.WithSchema(apiServiceMethods.ByName("ToggleUserOnboarded")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/api.v1.ApiService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ApiServiceSyncProcedure:
@@ -197,6 +220,8 @@ func NewApiServiceHandler(svc ApiServiceHandler, opts ...connect.HandlerOption) 
 			apiServiceGetMyUserHandler.ServeHTTP(w, r)
 		case ApiServiceLogoutProcedure:
 			apiServiceLogoutHandler.ServeHTTP(w, r)
+		case ApiServiceToggleUserOnboardedProcedure:
+			apiServiceToggleUserOnboardedHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -224,6 +249,10 @@ func (UnimplementedApiServiceHandler) GetMyUser(context.Context, *connect.Reques
 
 func (UnimplementedApiServiceHandler) Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ApiService.Logout is not implemented"))
+}
+
+func (UnimplementedApiServiceHandler) ToggleUserOnboarded(context.Context, *connect.Request[v1.ToggleUserOnboardedRequest]) (*connect.Response[v1.ToggleUserOnboardedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ApiService.ToggleUserOnboarded is not implemented"))
 }
 
 // AuthServiceClient is a client for the api.v1.AuthService service.

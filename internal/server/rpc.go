@@ -54,10 +54,13 @@ func (s *RpcServer) Sync(ctx context.Context, req *connect.Request[apiv1.SyncReq
 		return nil, errors.Join(err, errors.New("failed to retrieve user"))
 	}
 
-	err = s.syncService.SyncUser(ctx, &user)
-	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to sync user: %s", err.Error()))
-		return nil, errors.Join(err, errors.New("failed to sync user"))
+	// Only sync if it's been more than 24 hours since the last sync
+	if user.LastSyncedAt.Before(time.Now().Add(-1 * time.Hour * 24)) {
+		err = s.syncService.SyncUser(ctx, &user)
+		if err != nil {
+			slog.Error(fmt.Sprintf("Failed to sync user: %s", err.Error()))
+			return nil, errors.Join(err, errors.New("failed to sync user"))
+		}
 	}
 
 	releases, err := s.repository.GetReleasesForUserShortDescription(ctx, repository.GetReleasesForUserShortDescriptionParams{
@@ -68,7 +71,14 @@ func (s *RpcServer) Sync(ctx context.Context, req *connect.Request[apiv1.SyncReq
 		return nil, errors.Join(err, errors.New("failed to retrieve releases"))
 	}
 
+	repositories, err := s.repository.FindRepositoriesByUser(ctx,user.ID)
+	if err != nil {
+		return nil, errors.Join(err, errors.New("failed to retrieve repositories"))
+	}
+
 	res := connect.NewResponse(&apiv1.SyncResponse{})
+
+	res.Msg.RepositoryCount = int32(len(repositories))
 
 	for _, release := range releases {
 		res.Msg.Timeline = append(res.Msg.Timeline, &apiv1.TimelineEntry{
@@ -280,7 +290,39 @@ func (s *RpcServer) GetMyUser(ctx context.Context, req *connect.Request[apiv1.Ge
 		IsPublic:     user.IsPublic,
 		PublicId:     user.PublicID,
 		Name:         user.Username,
+		IsOnboarded:  user.IsOnboarded,
 	})
 
 	return res, nil
+}
+
+func (s *RpcServer) ToggleUserOnboarded(ctx context.Context, req *connect.Request[apiv1.ToggleUserOnboardedRequest]) (*connect.Response[apiv1.ToggleUserOnboardedResponse], error) {
+	userIDAny := authn.GetInfo(ctx)
+	if userIDAny == nil {
+		return nil, errors.New("no user id in context")
+	}
+
+	userID, ok := userIDAny.(int)
+	if !ok {
+		return nil, errors.New("invalid user id in context")
+	}
+
+	user, err := s.repository.GetUserByID(ctx, int32(userID))
+	if err != nil {
+		return nil, errors.Join(err, errors.New("failed to retrieve user"))
+	}
+
+	if user.IsOnboarded {
+		return nil, errors.New("user is already onboarded")
+	}
+
+	err = s.repository.UpdateUserOnboarded(ctx, repository.UpdateUserOnboardedParams{
+		IsOnboarded: true,
+		ID:          user.ID,
+	})
+	if err != nil {
+		return nil, errors.Join(err, errors.New("failed to update user"))
+	}
+
+	return connect.NewResponse(&apiv1.ToggleUserOnboardedResponse{}), nil
 }
