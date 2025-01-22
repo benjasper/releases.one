@@ -250,6 +250,7 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 			GithubToken:  repository.GitHubToken(*token),
 			LastSyncedAt: time.UnixMicro(0),
 			IsPublic:     false,
+			IsOnboarded:  false,
 			PublicID:     uuid.NewString(),
 		})
 		if err != nil {
