@@ -66,10 +66,11 @@ INSERT INTO
     github_token,
     last_synced_at,
     is_public,
+	is_onboarded,
     public_id
   )
 VALUES
-  (?, ?, ?, ?, ?, ?)
+  (?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateUserParams struct {
@@ -78,6 +79,7 @@ type CreateUserParams struct {
 	GithubToken  GitHubToken
 	LastSyncedAt time.Time
 	IsPublic     bool
+	IsOnboarded  bool
 	PublicID     string
 }
 
@@ -88,6 +90,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (sql.Res
 		arg.GithubToken,
 		arg.LastSyncedAt,
 		arg.IsPublic,
+		arg.IsOnboarded,
 		arg.PublicID,
 	)
 }

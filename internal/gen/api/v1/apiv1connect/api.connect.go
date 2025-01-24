@@ -55,6 +55,19 @@ const (
 	AuthServiceRefreshTokenProcedure = "/api.v1.AuthService/RefreshToken"
 )
 
+// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
+var (
+	apiServiceServiceDescriptor                    = v1.File_api_v1_api_proto.Services().ByName("ApiService")
+	apiServiceSyncMethodDescriptor                 = apiServiceServiceDescriptor.Methods().ByName("Sync")
+	apiServiceGetRepositoriesMethodDescriptor      = apiServiceServiceDescriptor.Methods().ByName("GetRepositories")
+	apiServiceToogleUserPublicFeedMethodDescriptor = apiServiceServiceDescriptor.Methods().ByName("ToogleUserPublicFeed")
+	apiServiceGetMyUserMethodDescriptor            = apiServiceServiceDescriptor.Methods().ByName("GetMyUser")
+	apiServiceLogoutMethodDescriptor               = apiServiceServiceDescriptor.Methods().ByName("Logout")
+	apiServiceToggleUserOnboardedMethodDescriptor  = apiServiceServiceDescriptor.Methods().ByName("ToggleUserOnboarded")
+	authServiceServiceDescriptor                   = v1.File_api_v1_api_proto.Services().ByName("AuthService")
+	authServiceRefreshTokenMethodDescriptor        = authServiceServiceDescriptor.Methods().ByName("RefreshToken")
+)
+
 // ApiServiceClient is a client for the api.v1.ApiService service.
 type ApiServiceClient interface {
 	Sync(context.Context, *connect.Request[v1.SyncRequest]) (*connect.Response[v1.SyncResponse], error)
@@ -74,42 +87,41 @@ type ApiServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewApiServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ApiServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	apiServiceMethods := v1.File_api_v1_api_proto.Services().ByName("ApiService").Methods()
 	return &apiServiceClient{
 		sync: connect.NewClient[v1.SyncRequest, v1.SyncResponse](
 			httpClient,
 			baseURL+ApiServiceSyncProcedure,
-			connect.WithSchema(apiServiceMethods.ByName("Sync")),
+			connect.WithSchema(apiServiceSyncMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
 		getRepositories: connect.NewClient[v1.GetRepositoriesRequest, v1.GetRepositoriesResponse](
 			httpClient,
 			baseURL+ApiServiceGetRepositoriesProcedure,
-			connect.WithSchema(apiServiceMethods.ByName("GetRepositories")),
+			connect.WithSchema(apiServiceGetRepositoriesMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
 		toogleUserPublicFeed: connect.NewClient[v1.ToogleUserPublicFeedRequest, v1.ToogleUserPublicFeedResponse](
 			httpClient,
 			baseURL+ApiServiceToogleUserPublicFeedProcedure,
-			connect.WithSchema(apiServiceMethods.ByName("ToogleUserPublicFeed")),
+			connect.WithSchema(apiServiceToogleUserPublicFeedMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
 		getMyUser: connect.NewClient[v1.GetMyUserRequest, v1.GetMyUserResponse](
 			httpClient,
 			baseURL+ApiServiceGetMyUserProcedure,
-			connect.WithSchema(apiServiceMethods.ByName("GetMyUser")),
+			connect.WithSchema(apiServiceGetMyUserMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
 		logout: connect.NewClient[v1.LogoutRequest, v1.LogoutResponse](
 			httpClient,
 			baseURL+ApiServiceLogoutProcedure,
-			connect.WithSchema(apiServiceMethods.ByName("Logout")),
+			connect.WithSchema(apiServiceLogoutMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
 		toggleUserOnboarded: connect.NewClient[v1.ToggleUserOnboardedRequest, v1.ToggleUserOnboardedResponse](
 			httpClient,
 			baseURL+ApiServiceToggleUserOnboardedProcedure,
-			connect.WithSchema(apiServiceMethods.ByName("ToggleUserOnboarded")),
+			connect.WithSchema(apiServiceToggleUserOnboardedMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -171,41 +183,40 @@ type ApiServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewApiServiceHandler(svc ApiServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	apiServiceMethods := v1.File_api_v1_api_proto.Services().ByName("ApiService").Methods()
 	apiServiceSyncHandler := connect.NewUnaryHandler(
 		ApiServiceSyncProcedure,
 		svc.Sync,
-		connect.WithSchema(apiServiceMethods.ByName("Sync")),
+		connect.WithSchema(apiServiceSyncMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
 	apiServiceGetRepositoriesHandler := connect.NewUnaryHandler(
 		ApiServiceGetRepositoriesProcedure,
 		svc.GetRepositories,
-		connect.WithSchema(apiServiceMethods.ByName("GetRepositories")),
+		connect.WithSchema(apiServiceGetRepositoriesMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
 	apiServiceToogleUserPublicFeedHandler := connect.NewUnaryHandler(
 		ApiServiceToogleUserPublicFeedProcedure,
 		svc.ToogleUserPublicFeed,
-		connect.WithSchema(apiServiceMethods.ByName("ToogleUserPublicFeed")),
+		connect.WithSchema(apiServiceToogleUserPublicFeedMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
 	apiServiceGetMyUserHandler := connect.NewUnaryHandler(
 		ApiServiceGetMyUserProcedure,
 		svc.GetMyUser,
-		connect.WithSchema(apiServiceMethods.ByName("GetMyUser")),
+		connect.WithSchema(apiServiceGetMyUserMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
 	apiServiceLogoutHandler := connect.NewUnaryHandler(
 		ApiServiceLogoutProcedure,
 		svc.Logout,
-		connect.WithSchema(apiServiceMethods.ByName("Logout")),
+		connect.WithSchema(apiServiceLogoutMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
 	apiServiceToggleUserOnboardedHandler := connect.NewUnaryHandler(
 		ApiServiceToggleUserOnboardedProcedure,
 		svc.ToggleUserOnboarded,
-		connect.WithSchema(apiServiceMethods.ByName("ToggleUserOnboarded")),
+		connect.WithSchema(apiServiceToggleUserOnboardedMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/api.v1.ApiService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -269,12 +280,11 @@ type AuthServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AuthServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	authServiceMethods := v1.File_api_v1_api_proto.Services().ByName("AuthService").Methods()
 	return &authServiceClient{
 		refreshToken: connect.NewClient[v1.RefreshTokenRequest, v1.RefreshTokenResponse](
 			httpClient,
 			baseURL+AuthServiceRefreshTokenProcedure,
-			connect.WithSchema(authServiceMethods.ByName("RefreshToken")),
+			connect.WithSchema(authServiceRefreshTokenMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -301,11 +311,10 @@ type AuthServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	authServiceMethods := v1.File_api_v1_api_proto.Services().ByName("AuthService").Methods()
 	authServiceRefreshTokenHandler := connect.NewUnaryHandler(
 		AuthServiceRefreshTokenProcedure,
 		svc.RefreshToken,
-		connect.WithSchema(authServiceMethods.ByName("RefreshToken")),
+		connect.WithSchema(authServiceRefreshTokenMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/api.v1.AuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

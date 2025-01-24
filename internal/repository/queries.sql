@@ -22,10 +22,11 @@ INSERT INTO
     github_token,
     last_synced_at,
     is_public,
+	is_onboarded,
     public_id
   )
 VALUES
-  (?, ?, ?, ?, ?, ?);
+  (?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateUserToken :exec
 UPDATE users
