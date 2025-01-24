@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -65,7 +66,7 @@ func (s *RpcServer) Sync(ctx context.Context, req *connect.Request[apiv1.SyncReq
 
 	releases, err := s.repository.GetReleasesForUserShortDescription(ctx, repository.GetReleasesForUserShortDescriptionParams{
 		UserID: user.ID,
-		IsPrerelease: true,
+		IsPrerelease: sql.NullBool{Bool: true, Valid: true},
 	})
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to retrieve releases"))
@@ -117,9 +118,11 @@ func (s *RpcServer) GetRepositories(ctx context.Context, req *connect.Request[ap
 		return nil, errors.Join(err, errors.New("failed to retrieve user"))
 	}
 
+	optionalPrerelease := sql.NullBool{Bool: req.Msg.Prerelease, Valid: !req.Msg.Prerelease}
+
 	releases, err := s.repository.GetReleasesForUserShortDescription(ctx, repository.GetReleasesForUserShortDescriptionParams{
 		UserID: user.ID,
-		IsPrerelease: req.Msg.Prerelease,
+		IsPrerelease: optionalPrerelease,
 	})
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to retrieve releases"))

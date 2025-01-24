@@ -226,7 +226,7 @@ FROM
 WHERE
   `repository_stars`.`user_id` = ?
   AND `users`.`is_public` = true
-  AND `is_prerelease` = ?
+  AND (sqlc.narg('is_prerelease') IS NULL OR `is_prerelease` = sqlc.narg('is_prerelease'))
 ORDER BY
   releases.released_at DESC
 LIMIT
@@ -256,7 +256,7 @@ FROM
   INNER JOIN `repository_stars` ON `releases`.`repository_id` = `repository_stars`.`repository_id`
 WHERE
   `repository_stars`.`user_id` = ?
-  AND `is_prerelease` = ?
+  AND (sqlc.narg('is_prerelease') IS NULL OR `is_prerelease` = sqlc.narg('is_prerelease'))
 ORDER BY
   releases.released_at DESC
 LIMIT

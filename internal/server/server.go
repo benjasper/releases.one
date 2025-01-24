@@ -332,6 +332,7 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedTy
 	if err != nil {
 		prerelase = true
 	}
+	optionalPrerelease := sql.NullBool{Bool: prerelase, Valid: !prerelase}
 
 	user, err := s.repository.GetUserByPublicID(r.Context(), userID)
 	if err != nil {
@@ -347,7 +348,7 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedTy
 
 	releases, err := s.repository.GetReleasesForUser(r.Context(), repository.GetReleasesForUserParams{
 		UserID: user.ID,
-		IsPrerelease: prerelase,
+		IsPrerelease: optionalPrerelease,
 	})
 	if err != nil {
 		http.Error(w, "Failed to retrieve releases: "+err.Error(), http.StatusInternalServerError)
