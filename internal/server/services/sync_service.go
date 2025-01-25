@@ -137,8 +137,6 @@ func (s *SyncService) syncRepositoriesAndReleases(ctx context.Context, user *rep
 				return err
 			}
 
-			fmt.Println(repo.NameWithOwner)
-
 			releasesErrGroup.Go(func() error {
 				return s.syncRepository(ctx, repo, user, repository.RepositoryStarTypeWatch)
 			})
