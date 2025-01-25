@@ -8,6 +8,13 @@ import (
 	"golang.org/x/oauth2"
 )
 
+type RepositoryStarType int
+
+const (
+	RepositoryStarTypeStar RepositoryStarType = iota
+	RepositoryStarTypeWatch
+)
+
 type GitHubToken oauth2.Token
 
 // Implementing `sql.Scanner` interface to read JSON from the database

@@ -45,6 +45,7 @@ type RepositoryStar struct {
 	UserID       int32
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	Type         int8
 }
 
 type User struct {
@@ -54,6 +55,6 @@ type User struct {
 	GithubToken  GitHubToken
 	LastSyncedAt time.Time
 	PublicID     string
-	IsPublic     bool
 	IsOnboarded  bool
+	IsPublic     bool
 }

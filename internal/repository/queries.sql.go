@@ -131,7 +131,7 @@ func (q *Queries) DeleteRepositoryStarsUpdatedBefore(ctx context.Context, arg De
 
 const findRepositoriesByUser = `-- name: FindRepositoriesByUser :many
 SELECT
-  id, github_id, name, url, private, repositories.created_at, repositories.updated_at, last_synced_at, image_url, image_size, hash, repository_id, user_id, repository_stars.created_at, repository_stars.updated_at
+  id, github_id, name, url, private, repositories.created_at, repositories.updated_at, last_synced_at, image_url, image_size, hash, repository_id, user_id, repository_stars.created_at, repository_stars.updated_at, type
 FROM
   repositories
 LEFT JOIN
@@ -156,6 +156,7 @@ type FindRepositoriesByUserRow struct {
 	UserID       sql.NullInt32
 	CreatedAt_2  sql.NullTime
 	UpdatedAt_2  sql.NullTime
+	Type         sql.NullInt16
 }
 
 func (q *Queries) FindRepositoriesByUser(ctx context.Context, userID int32) ([]FindRepositoriesByUserRow, error) {
@@ -183,6 +184,7 @@ func (q *Queries) FindRepositoriesByUser(ctx context.Context, userID int32) ([]F
 			&i.UserID,
 			&i.CreatedAt_2,
 			&i.UpdatedAt_2,
+			&i.Type,
 		); err != nil {
 			return nil, err
 		}
@@ -474,7 +476,7 @@ func (q *Queries) GetRepositoryByGithubID(ctx context.Context, githubID string) 
 
 const getUserByGitHubID = `-- name: GetUserByGitHubID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id, is_public, is_onboarded
+  id, username, github_id, github_token, last_synced_at, public_id, is_onboarded, is_public
 FROM
   users
 WHERE
@@ -491,15 +493,15 @@ func (q *Queries) GetUserByGitHubID(ctx context.Context, githubID uint64) (User,
 		&i.GithubToken,
 		&i.LastSyncedAt,
 		&i.PublicID,
-		&i.IsPublic,
 		&i.IsOnboarded,
+		&i.IsPublic,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id, is_public, is_onboarded
+  id, username, github_id, github_token, last_synced_at, public_id, is_onboarded, is_public
 FROM
   users
 WHERE
@@ -516,15 +518,15 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.GithubToken,
 		&i.LastSyncedAt,
 		&i.PublicID,
-		&i.IsPublic,
 		&i.IsOnboarded,
+		&i.IsPublic,
 	)
 	return i, err
 }
 
 const getUserByPublicID = `-- name: GetUserByPublicID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id, is_public, is_onboarded
+  id, username, github_id, github_token, last_synced_at, public_id, is_onboarded, is_public
 FROM
   users
 WHERE
@@ -541,15 +543,15 @@ func (q *Queries) GetUserByPublicID(ctx context.Context, publicID string) (User,
 		&i.GithubToken,
 		&i.LastSyncedAt,
 		&i.PublicID,
-		&i.IsPublic,
 		&i.IsOnboarded,
+		&i.IsPublic,
 	)
 	return i, err
 }
 
 const getUsersInNeedOfAnUpdate = `-- name: GetUsersInNeedOfAnUpdate :many
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id, is_public, is_onboarded
+  id, username, github_id, github_token, last_synced_at, public_id, is_onboarded, is_public
 FROM
   users
 WHERE
@@ -581,8 +583,8 @@ func (q *Queries) GetUsersInNeedOfAnUpdate(ctx context.Context, arg GetUsersInNe
 			&i.GithubToken,
 			&i.LastSyncedAt,
 			&i.PublicID,
-			&i.IsPublic,
 			&i.IsOnboarded,
+			&i.IsPublic,
 		); err != nil {
 			return nil, err
 		}
@@ -655,14 +657,15 @@ func (q *Queries) InsertRelease(ctx context.Context, arg InsertReleaseParams) er
 
 const insertRepositoryStar = `-- name: InsertRepositoryStar :exec
 INSERT INTO
-  repository_stars (repository_id, user_id, created_at, updated_at)
+  repository_stars (repository_id, user_id, type, created_at, updated_at)
 VALUES
-  (?, ?, ?, ?)
+  (?, ?, ?, ?, ?)
 `
 
 type InsertRepositoryStarParams struct {
 	RepositoryID int32
 	UserID       int32
+	Type         int8
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -671,6 +674,7 @@ func (q *Queries) InsertRepositoryStar(ctx context.Context, arg InsertRepository
 	_, err := q.db.ExecContext(ctx, insertRepositoryStar,
 		arg.RepositoryID,
 		arg.UserID,
+		arg.Type,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)

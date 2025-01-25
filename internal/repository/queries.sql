@@ -127,9 +127,9 @@ WHERE
 
 -- name: InsertRepositoryStar :exec
 INSERT INTO
-  repository_stars (repository_id, user_id, created_at, updated_at)
+  repository_stars (repository_id, user_id, type, created_at, updated_at)
 VALUES
-  (?, ?, ?, ?);
+  (?, ?, ?, ?, ?);
 
 -- name: UpdateRepositoryStar :execresult
 UPDATE repository_stars

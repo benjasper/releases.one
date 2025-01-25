@@ -100,6 +100,65 @@ func (s *GitHubService) GetStarredRepos(ctx context.Context) iter.Seq2[*Reposito
 	}
 }
 
+func (s *GitHubService) GetWatchingRepos(ctx context.Context) iter.Seq2[*Repository, error] {
+	return func(yield func(*Repository, error) bool) {
+		hasNextPage := true
+		after := ""
+		for hasNextPage {
+			requestBody := make(map[string]string)
+			requestBody["query"] = WatchingReposQuery(pageSize, after)
+			requestJson, err := json.Marshal(requestBody)
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", bytes.NewBuffer(requestJson))
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			req.Header.Set("User-Agent", "releases.one")
+
+			resp, err := s.client.Do(req)
+			if err != nil {
+				yield(nil, errors.Join(err, fmt.Errorf("failed to make watching repositories request to GitHub")))
+				return
+			}
+			defer resp.Body.Close()
+
+			var watchingReposResponse WatchingReposResponse
+			if err := json.NewDecoder(resp.Body).Decode(&watchingReposResponse); err != nil {
+				yield(nil, err)
+				return
+			}
+
+			hasNextPage = watchingReposResponse.Data.Viewer.Watching.PageInfo.HasNextPage
+			after = watchingReposResponse.Data.Viewer.Watching.PageInfo.EndCursor
+
+			if len(watchingReposResponse.Errors) > 0 {
+				for _, err := range watchingReposResponse.Errors {
+					slog.Info(fmt.Sprintf("Error: %s", err.Message))
+				}
+				yield(nil, errors.Join(errors.New("failed to fetch watching repos (graphql error)"), errors.New(watchingReposResponse.Errors[0].Message)))
+				return
+			}
+
+			if watchingReposResponse.Message != "" {
+				yield(nil, fmt.Errorf("failed to fetch watching repos(api error): %s", watchingReposResponse.Message))
+				return
+			}
+
+			for _, repo := range watchingReposResponse.Data.Viewer.Watching.Nodes {
+				if !yield(&repo, nil) {
+					return
+				}
+			}
+		}
+	}
+}
+
 func (s *GitHubService) GetUserData(ctx context.Context) (*UserData, error) {
 	url := "https://api.github.com/user"
 	resp, err := s.client.Get(url)

@@ -5,8 +5,59 @@ import (
 	"time"
 )
 
+var repositoryFragment = `
+fragment Repository on Repository {
+  id
+  nameWithOwner
+  url
+  openGraphImageUrl
+  isPrivate
+  releases(first: 3, orderBy: { field: CREATED_AT, direction: DESC }) {
+    nodes {
+      id
+      name
+      tagName
+      isDraft
+      isPrerelease
+      publishedAt
+      url
+      description
+      shortDescriptionHTML
+      author {
+        name
+        login
+      }
+    }
+  }
+}
+`
+
+var WatchingReposQueryTemplate = `
+%s
+query WatchingRepositories {
+  rateLimit {
+    limit
+    cost
+    remaining
+    resetAt
+  }
+  viewer {
+    watching(first: %d, after: "%s") {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        ...Repository
+      }
+    }
+  }
+}
+`
+
 var StarredReposQueryTemplate = `
-query {
+%s
+query StarredRepositories {
   rateLimit {
     limit
     cost
@@ -20,28 +71,7 @@ query {
         endCursor
       }
       nodes {
-		id
-        nameWithOwner
-	    url
-		openGraphImageUrl
-	    isPrivate
-        releases(first: 3, orderBy: {field: CREATED_AT, direction: DESC}) {
-          nodes {
-			id
-            name
-            tagName
-            isDraft
-            isPrerelease
-            publishedAt
-            url
-			description
-			shortDescriptionHTML
-			author {
-				name
-				login
-			}
-          }
-        }
+        ...Repository
       }
     }
   }
@@ -49,7 +79,11 @@ query {
 `
 
 func StarredReposQuery(first int, after string) string {
-	return fmt.Sprintf(StarredReposQueryTemplate, first, after)
+	return fmt.Sprintf(StarredReposQueryTemplate, repositoryFragment, first, after)
+}
+
+func WatchingReposQuery(first int, after string) string {
+	return fmt.Sprintf(WatchingReposQueryTemplate, repositoryFragment, first, after)
 }
 
 type StarredReposResponse struct {
@@ -66,6 +100,30 @@ type StarredReposResponse struct {
 				} `json:"pageInfo"`
 				Nodes []Repository `json:"nodes"`
 			} `json:"starredRepositories"`
+		} `json:"viewer"`
+		RateLimit struct {
+			ResetAt   time.Time `json:"resetAt"`
+			Limit     int       `json:"limit"`
+			Cost      int       `json:"cost"`
+			Remaining int       `json:"remaining"`
+		} `json:"rateLimit"`
+	} `json:"data"`
+}
+
+type WatchingReposResponse struct {
+	Message string `json:"message"`
+	Errors  []struct {
+		Message string `json:"message"`
+	} `json:"errors"`
+	Data struct {
+		Viewer struct {
+			Watching struct {
+				PageInfo struct {
+					EndCursor   string `json:"endCursor"`
+					HasNextPage bool   `json:"hasNextPage"`
+				} `json:"pageInfo"`
+				Nodes []Repository `json:"nodes"`
+			} `json:"watching"`
 		} `json:"viewer"`
 		RateLimit struct {
 			ResetAt   time.Time `json:"resetAt"`

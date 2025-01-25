@@ -12,6 +12,9 @@ tasks:
       - task: generate-proto
       - task: generate-sqlc
 
+  migrations-apply:
+    cmd: atlas schema apply -u "mysql://root:123@localhost:3306/releases" --to file://schema.sql --dev-url "docker://mysql/8/example"
+
   start-frontend:
     cmds:
       - cd frontend && pnpm start
