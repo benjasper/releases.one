@@ -2,7 +2,7 @@ version: "2"
 sql:
   - engine: "mysql"
     queries: "internal/repository/queries.sql"
-    schema: "internal/repository/schema.sql"
+    schema: "schema.sql"
     gen:
       go:
         sql_package: "database/sql"
