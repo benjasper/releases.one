@@ -65,14 +65,14 @@ func (s *RpcServer) Sync(ctx context.Context, req *connect.Request[apiv1.SyncReq
 	}
 
 	releases, err := s.repository.GetReleasesForUserShortDescription(ctx, repository.GetReleasesForUserShortDescriptionParams{
-		UserID: user.ID,
+		UserID:       user.ID,
 		IsPrerelease: sql.NullBool{Bool: true, Valid: true},
 	})
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to retrieve releases"))
 	}
 
-	repositories, err := s.repository.FindRepositoriesByUser(ctx,user.ID)
+	repositories, err := s.repository.FindRepositoriesByUser(ctx, user.ID)
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to retrieve repositories"))
 	}
@@ -94,6 +94,7 @@ func (s *RpcServer) Sync(ctx context.Context, req *connect.Request[apiv1.SyncReq
 			ReleasedAt:     timestamppb.New(release.ReleasedAt),
 			RepositoryName: release.RepositoryName.String,
 			ImageUrl:       release.ImageUrl.String,
+			StarType:       apiv1.RepositoryStarType(release.RepositoryStarType),
 		})
 	}
 
@@ -121,7 +122,7 @@ func (s *RpcServer) GetRepositories(ctx context.Context, req *connect.Request[ap
 	optionalPrerelease := sql.NullBool{Bool: req.Msg.Prerelease, Valid: !req.Msg.Prerelease}
 
 	releases, err := s.repository.GetReleasesForUserShortDescription(ctx, repository.GetReleasesForUserShortDescriptionParams{
-		UserID: user.ID,
+		UserID:       user.ID,
 		IsPrerelease: optionalPrerelease,
 	})
 	if err != nil {
@@ -142,6 +143,7 @@ func (s *RpcServer) GetRepositories(ctx context.Context, req *connect.Request[ap
 			RepositoryName: release.RepositoryName.String,
 			RepositoryUrl:  release.RepositoryUrl.String,
 			ImageUrl:       release.ImageUrl.String,
+			StarType:       apiv1.RepositoryStarType(release.RepositoryStarType),
 		})
 	}
 

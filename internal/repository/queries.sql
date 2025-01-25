@@ -250,7 +250,8 @@ SELECT
   `repositories`.`name` AS repository_name,
   `repositories`.`image_url` AS image_url,
   `repositories`.`image_size` AS image_size,
-  `repositories`.`url` AS repository_url
+  `repositories`.`url` AS repository_url,
+  `repository_stars`.`type` AS repository_star_type
 FROM
   `releases`
   LEFT JOIN `repositories` ON `releases`.`repository_id` = `repositories`.`id`

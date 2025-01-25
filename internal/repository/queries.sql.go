@@ -368,7 +368,8 @@ SELECT
   ` + "`" + `repositories` + "`" + `.` + "`" + `name` + "`" + ` AS repository_name,
   ` + "`" + `repositories` + "`" + `.` + "`" + `image_url` + "`" + ` AS image_url,
   ` + "`" + `repositories` + "`" + `.` + "`" + `image_size` + "`" + ` AS image_size,
-  ` + "`" + `repositories` + "`" + `.` + "`" + `url` + "`" + ` AS repository_url
+  ` + "`" + `repositories` + "`" + `.` + "`" + `url` + "`" + ` AS repository_url,
+  ` + "`" + `repository_stars` + "`" + `.` + "`" + `type` + "`" + ` AS repository_star_type
 FROM
   ` + "`" + `releases` + "`" + `
   LEFT JOIN ` + "`" + `repositories` + "`" + ` ON ` + "`" + `releases` + "`" + `.` + "`" + `repository_id` + "`" + ` = ` + "`" + `repositories` + "`" + `.` + "`" + `id` + "`" + `
@@ -388,22 +389,23 @@ type GetReleasesForUserShortDescriptionParams struct {
 }
 
 type GetReleasesForUserShortDescriptionRow struct {
-	ID               int32
-	GithubID         string
-	RepositoryID     int32
-	Name             string
-	Url              string
-	TagName          string
-	DescriptionShort string
-	Author           sql.NullString
-	IsPrerelease     bool
-	ReleasedAt       time.Time
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	RepositoryName   sql.NullString
-	ImageUrl         sql.NullString
-	ImageSize        sql.NullInt32
-	RepositoryUrl    sql.NullString
+	ID                 int32
+	GithubID           string
+	RepositoryID       int32
+	Name               string
+	Url                string
+	TagName            string
+	DescriptionShort   string
+	Author             sql.NullString
+	IsPrerelease       bool
+	ReleasedAt         time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	RepositoryName     sql.NullString
+	ImageUrl           sql.NullString
+	ImageSize          sql.NullInt32
+	RepositoryUrl      sql.NullString
+	RepositoryStarType int8
 }
 
 func (q *Queries) GetReleasesForUserShortDescription(ctx context.Context, arg GetReleasesForUserShortDescriptionParams) ([]GetReleasesForUserShortDescriptionRow, error) {
@@ -432,6 +434,7 @@ func (q *Queries) GetReleasesForUserShortDescription(ctx context.Context, arg Ge
 			&i.ImageUrl,
 			&i.ImageSize,
 			&i.RepositoryUrl,
+			&i.RepositoryStarType,
 		); err != nil {
 			return nil, err
 		}

@@ -18,7 +18,9 @@ import { formatDistance } from 'date-fns/formatDistance'
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/components/ui/tooltip'
 import Navbar from '~/components/navbar'
 import { Skeleton } from '~/components/ui/skeleton'
-import { FiArrowUp, FiExternalLink } from 'solid-icons/fi'
+import { FiArrowUp, FiExternalLink, FiEye, FiStar } from 'solid-icons/fi'
+import { RepositoryStarType } from '~/lib/generated/api/v1/api_pb'
+import { AiFillStar } from 'solid-icons/ai'
 
 const TimelineSkeleton: Component = () => {
 	return <For each={Array(10)}>{() => <Skeleton class="rounded-lg w-full max-w-120" height={400} />}</For>
@@ -124,17 +126,41 @@ const TimelinePage: Component = () => {
 										/>
 									</CardHeader>
 									<CardContent class="flex flex-col !pb-0 pt-4 prose dark:prose-invert">
-										<a
-											href={timelineItem.repositoryUrl}
-											class="flex items-center no-underline hover:underline group"
-											target="_blank"
-											rel="noopener noreferrer">
-											<span class="font-normal">{timelineItem.repositoryName}</span>
-											<FiExternalLink class="opacity-0 inline-block ml-1.5 text-gray-400 w-3 transition-all group-hover:opacity-100" />
-										</a>
+										<div class="flex items-center gap-2 justify-between">
+											<a
+												href={timelineItem.repositoryUrl}
+												class="flex items-center no-underline hover:underline group"
+												target="_blank"
+												rel="noopener noreferrer">
+												<span class="font-normal">{timelineItem.repositoryName}</span>
+												<FiExternalLink class="opacity-0 inline-block ml-1.5 text-gray-400 w-3 transition-all group-hover:opacity-100" />
+											</a>
+
+											<Show when={timelineItem.starType === RepositoryStarType.STAR}>
+												<Tooltip>
+													<TooltipTrigger>
+														<AiFillStar class="w-4" />
+													</TooltipTrigger>
+													<TooltipContent>
+														You have starred this repository
+													</TooltipContent>
+												</Tooltip>
+											</Show>
+
+											<Show when={timelineItem.starType === RepositoryStarType.WATCH}>
+												<Tooltip>
+													<TooltipTrigger>
+														<FiEye class="w-4" />
+													</TooltipTrigger>
+													<TooltipContent>
+														You are watching this repository
+													</TooltipContent>
+												</Tooltip>
+											</Show>
+										</div>
 										<a
 											href={timelineItem.url}
-											class="flex items-center no-underline hover:underline group"
+											class="flex items-center mr-auto no-underline hover:underline group"
 											target="_blank"
 											rel="noopener noreferrer">
 											<h2 class="!mt-0 !mb-0 font-normal inline-block">{timelineItem.name}</h2>
