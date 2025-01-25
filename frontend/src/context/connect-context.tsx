@@ -22,7 +22,7 @@ const baseUrl = import.meta.env.VITE_API_BASE_URL
 
 const transport = createConnectTransport({
 	baseUrl: baseUrl,
-	// useBinaryFormat: true,
+	useBinaryFormat: true,
 	interceptors: [authInterceptor],
 	fetch: (url, options) => {
 		return fetch(url, { credentials: 'include', ...options, signal: abortController.signal })
