@@ -14,7 +14,7 @@ type Props = {
 
 const StarTypeSelect: Component<Props> = props => {
 	return (
-		<div class="flex items-center justify-between">
+		<div class="flex items-center gap-4 justify-between">
 			<label for="star-type" class="flex items-center text-sm font-medium leading-none">
 				Repository type
 				<Tooltip>
