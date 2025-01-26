@@ -14,22 +14,24 @@ import { RepositoryStarType } from '~/lib/generated/api/v1/api_pb'
 import { AiFillStar } from 'solid-icons/ai'
 import StarTypeSelect from '~/components/star-type-select'
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
+import { useLocalStore } from '~/context/local-store'
 
 const TimelineSkeleton: Component = () => {
 	return <For each={Array(10)}>{() => <Skeleton class="rounded-lg w-full max-w-120" height={400} />}</For>
 }
 
 const TimelinePage: Component = () => {
+	const [localStore, setLocalStore] = useLocalStore()
 	const [search, setSearch] = createSignal('')
-	const [descriptionEnabled, setDescriptionEnabled] = createSignal(true)
-	const [prereleaseEnabled, setPrereleaseEnabled] = createSignal(true)
 	const [isScrollingDown, setIsScrollingDown] = createSignal(false)
-	const [starType, setStarType] = createSignal<RepositoryStarType | null>(null)
 	const [now, setNow] = createSignal(Date.now())
 
 	const connect = useConnect()
 	const [timeline, { refetch: refetchTimeline }] = createResource(
-		() => ({ prerelease: prereleaseEnabled(), starType: starType() ?? undefined }),
+		() => ({
+			prerelease: localStore.settings.showPrereleases,
+			starType: localStore.settings.selectedStarType ?? undefined,
+		}),
 		args => connect.getRepositories(args)
 	)
 
@@ -97,8 +99,8 @@ const TimelinePage: Component = () => {
 						<PopoverContent class="flex flex-col gap-4 !w-auto">
 							<Switch
 								class="items-center flex gap-4 justify-between"
-								checked={descriptionEnabled()}
-								onChange={setDescriptionEnabled}>
+								checked={localStore.settings.showDescription}
+								onChange={value => setLocalStore('settings', 'showDescription', value)}>
 								<SwitchLabel class="w-auto">Show release description</SwitchLabel>
 								<SwitchControl>
 									<SwitchThumb />
@@ -107,15 +109,18 @@ const TimelinePage: Component = () => {
 
 							<Switch
 								class="items-center flex gap-4 justify-between"
-								checked={prereleaseEnabled()}
-								onChange={setPrereleaseEnabled}>
+								checked={localStore.settings.showPrereleases}
+								onChange={value => setLocalStore('settings', 'showPrereleases', value)}>
 								<SwitchLabel class="w-auto">Show prereleases</SwitchLabel>
 								<SwitchControl>
 									<SwitchThumb />
 								</SwitchControl>
 							</Switch>
 
-							<StarTypeSelect starType={starType()} onChange={setStarType} />
+							<StarTypeSelect
+								starType={localStore.settings.selectedStarType}
+								onChange={value => setLocalStore('settings', 'selectedStarType', value)}
+							/>
 						</PopoverContent>
 					</Popover>
 				</div>
@@ -169,7 +174,7 @@ const TimelinePage: Component = () => {
 											<h2 class="!mt-0 !mb-0 font-normal inline-block">{timelineItem.name}</h2>
 											<FiExternalLink class="opacity-0 ml-1.5 text-gray-400 w-4 transition-all group-hover:opacity-100" />
 										</a>
-										<Show when={descriptionEnabled()}>
+										<Show when={localStore.settings.showDescription}>
 											<div
 												class="pt-2 prose-sm overflow-hidden break-words"
 												innerHTML={timelineItem.description}></div>
