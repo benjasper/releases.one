@@ -51,6 +51,7 @@ message SyncResponse {
 
 message GetRepositoriesRequest {
 	bool prerelease = 1;
+	optional RepositoryStarType star_type = 2;
 }
 message GetRepositoriesResponse {
 	repeated TimelineEntry timeline = 1;

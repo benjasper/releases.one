@@ -328,12 +328,31 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedType) {
 	userID := r.PathValue("userID")
 	prereleaseString := r.URL.Query().Get("prerelease")
+	starTypeString := r.URL.Query().Get("starType")
 
 	prerelase, err := strconv.ParseBool(prereleaseString)
 	if err != nil {
 		prerelase = true
 	}
 	optionalPrerelease := sql.NullBool{Bool: prerelase, Valid: !prerelase}
+
+	optionalStarType := sql.NullInt16{Int16: 0, Valid: false}
+	if starTypeString != "" {
+		starType, err := strconv.ParseInt(starTypeString, 10, 16)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Star type must be 0 or 1"))
+			return
+		}
+
+		if starType != 0 && starType != 1 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Star type must be 0 or 1"))
+			return
+		}
+
+		optionalStarType = sql.NullInt16{Int16: int16(starType), Valid: true}
+	}
 
 	user, err := s.repository.GetUserByPublicID(r.Context(), userID)
 	if err != nil {
@@ -350,6 +369,7 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedTy
 	releases, err := s.repository.GetReleasesForUser(r.Context(), repository.GetReleasesForUserParams{
 		UserID: user.ID,
 		IsPrerelease: optionalPrerelease,
+		StarType:     optionalStarType,
 	})
 	if err != nil {
 		http.Error(w, "Failed to retrieve releases: "+err.Error(), http.StatusInternalServerError)

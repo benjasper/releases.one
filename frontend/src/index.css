@@ -354,6 +354,10 @@
 	color: #991b1b;
 }
 
+.markdown-alert a {
+	color: inherit !important;
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .no-scrollbar::-webkit-scrollbar {
     display: none;

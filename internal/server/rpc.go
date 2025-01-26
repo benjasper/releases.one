@@ -121,9 +121,15 @@ func (s *RpcServer) GetRepositories(ctx context.Context, req *connect.Request[ap
 
 	optionalPrerelease := sql.NullBool{Bool: req.Msg.Prerelease, Valid: !req.Msg.Prerelease}
 
+	optionalStarType := sql.NullInt16{Int16: 0, Valid: false}
+	if req.Msg.StarType != nil {
+		optionalStarType = sql.NullInt16{Int16: int16(*req.Msg.StarType), Valid: true}
+	}
+
 	releases, err := s.repository.GetReleasesForUserShortDescription(ctx, repository.GetReleasesForUserShortDescriptionParams{
 		UserID:       user.ID,
 		IsPrerelease: optionalPrerelease,
+		StarType:     optionalStarType,
 	})
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to retrieve releases"))

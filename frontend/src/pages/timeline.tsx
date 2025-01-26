@@ -1,13 +1,4 @@
-import {
-	Component,
-	createMemo,
-	createResource,
-	createSignal,
-	For,
-	onCleanup,
-	onMount,
-	Show,
-} from 'solid-js'
+import { Component, createMemo, createResource, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { useConnect } from '~/context/connect-context'
 import { Card, CardContent, CardFooter, CardHeader } from '~/components/ui/card'
 import { timestampDate } from '@bufbuild/protobuf/wkt'
@@ -18,9 +9,11 @@ import { formatDistance } from 'date-fns/formatDistance'
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/components/ui/tooltip'
 import Navbar from '~/components/navbar'
 import { Skeleton } from '~/components/ui/skeleton'
-import { FiArrowUp, FiExternalLink, FiEye, FiStar } from 'solid-icons/fi'
+import { FiArrowUp, FiExternalLink, FiEye, FiFilter, FiStar } from 'solid-icons/fi'
 import { RepositoryStarType } from '~/lib/generated/api/v1/api_pb'
 import { AiFillStar } from 'solid-icons/ai'
+import StarTypeSelect from '~/components/star-type-select'
+import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 
 const TimelineSkeleton: Component = () => {
 	return <For each={Array(10)}>{() => <Skeleton class="rounded-lg w-full max-w-120" height={400} />}</For>
@@ -31,10 +24,14 @@ const TimelinePage: Component = () => {
 	const [descriptionEnabled, setDescriptionEnabled] = createSignal(true)
 	const [prereleaseEnabled, setPrereleaseEnabled] = createSignal(true)
 	const [isScrollingDown, setIsScrollingDown] = createSignal(false)
+	const [starType, setStarType] = createSignal<RepositoryStarType | null>(null)
 	const [now, setNow] = createSignal(Date.now())
 
 	const connect = useConnect()
-	const [timeline, {refetch: refetchTimeline}] = createResource(() => ({prerelease: prereleaseEnabled()}), (args) => connect.getRepositories(args))
+	const [timeline, { refetch: refetchTimeline }] = createResource(
+		() => ({ prerelease: prereleaseEnabled(), starType: starType() ?? undefined }),
+		args => connect.getRepositories(args)
+	)
 
 	const filteredTimeline = () =>
 		timeline()?.timeline.filter(x => x.repositoryName.toLowerCase().includes(search().toLowerCase())) ?? []
@@ -47,7 +44,7 @@ const TimelinePage: Component = () => {
 	// Refetch timeline after it's one minute old, when the user is coming back to the page
 	const lastRefresh = new Date()
 	const refetchTimelineListener = () => {
-		if (lastRefresh.getTime() + 1000 * 60  < Date.now()) {
+		if (lastRefresh.getTime() + 1000 * 60 < Date.now()) {
 			refetchTimeline()
 			lastRefresh.setTime(Date.now())
 		}
@@ -92,25 +89,35 @@ const TimelinePage: Component = () => {
 						/>
 					</TextField>
 
-					<Switch
-						class="items-center flex gap-2"
-						checked={descriptionEnabled()}
-						onChange={setDescriptionEnabled}>
-						<SwitchControl>
-							<SwitchThumb />
-						</SwitchControl>
-						<SwitchLabel class="w-auto">Show release description</SwitchLabel>
-					</Switch>
+					<Popover>
+						<PopoverTrigger as={Button<'button'>} class="cursor-pointer">
+							<FiFilter class="w-6 h-6" />
+							Filters
+						</PopoverTrigger>
+						<PopoverContent class="flex flex-col gap-4 !w-auto">
+							<Switch
+								class="items-center flex gap-4 justify-between"
+								checked={descriptionEnabled()}
+								onChange={setDescriptionEnabled}>
+								<SwitchLabel class="w-auto">Show release description</SwitchLabel>
+								<SwitchControl>
+									<SwitchThumb />
+								</SwitchControl>
+							</Switch>
 
-					<Switch
-						class="items-center flex gap-2"
-						checked={prereleaseEnabled()}
-						onChange={setPrereleaseEnabled}>
-						<SwitchControl>
-							<SwitchThumb />
-						</SwitchControl>
-						<SwitchLabel class="w-auto">Show prereleases</SwitchLabel>
-					</Switch>
+							<Switch
+								class="items-center flex gap-4 justify-between"
+								checked={prereleaseEnabled()}
+								onChange={setPrereleaseEnabled}>
+								<SwitchLabel class="w-auto">Show prereleases</SwitchLabel>
+								<SwitchControl>
+									<SwitchThumb />
+								</SwitchControl>
+							</Switch>
+
+							<StarTypeSelect starType={starType()} onChange={setStarType} />
+						</PopoverContent>
+					</Popover>
 				</div>
 				<div class="flex flex-col gap-4 items-center justify-center">
 					<Show when={!timeline.loading} fallback={<TimelineSkeleton />}>
@@ -141,9 +148,7 @@ const TimelinePage: Component = () => {
 													<TooltipTrigger>
 														<AiFillStar class="w-4" />
 													</TooltipTrigger>
-													<TooltipContent>
-														You have starred this repository
-													</TooltipContent>
+													<TooltipContent>You have starred this repository</TooltipContent>
 												</Tooltip>
 											</Show>
 
@@ -152,9 +157,7 @@ const TimelinePage: Component = () => {
 													<TooltipTrigger>
 														<FiEye class="w-4" />
 													</TooltipTrigger>
-													<TooltipContent>
-														You are watching this repository
-													</TooltipContent>
+													<TooltipContent>You are watching this repository</TooltipContent>
 												</Tooltip>
 											</Show>
 										</div>
@@ -167,7 +170,9 @@ const TimelinePage: Component = () => {
 											<FiExternalLink class="opacity-0 ml-1.5 text-gray-400 w-4 transition-all group-hover:opacity-100" />
 										</a>
 										<Show when={descriptionEnabled()}>
-											<div class="pt-2 prose-sm overflow-hidden break-words" innerHTML={timelineItem.description}></div>
+											<div
+												class="pt-2 prose-sm overflow-hidden break-words"
+												innerHTML={timelineItem.description}></div>
 										</Show>
 									</CardContent>
 									<CardFooter class="flex justify-between text-muted-foreground !pt-2 text-sm">

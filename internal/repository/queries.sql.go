@@ -277,6 +277,7 @@ WHERE
   ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ?
   AND ` + "`" + `users` + "`" + `.` + "`" + `is_public` + "`" + ` = true
   AND (? IS NULL OR ` + "`" + `is_prerelease` + "`" + ` = ?)
+  AND (? IS NULL OR ` + "`" + `repository_stars` + "`" + `.` + "`" + `type` + "`" + ` = ?)
 ORDER BY
   releases.released_at DESC
 LIMIT
@@ -286,6 +287,7 @@ LIMIT
 type GetReleasesForUserParams struct {
 	UserID       int32
 	IsPrerelease sql.NullBool
+	StarType     sql.NullInt16
 }
 
 type GetReleasesForUserRow struct {
@@ -310,7 +312,13 @@ type GetReleasesForUserRow struct {
 }
 
 func (q *Queries) GetReleasesForUser(ctx context.Context, arg GetReleasesForUserParams) ([]GetReleasesForUserRow, error) {
-	rows, err := q.db.QueryContext(ctx, getReleasesForUser, arg.UserID, arg.IsPrerelease, arg.IsPrerelease)
+	rows, err := q.db.QueryContext(ctx, getReleasesForUser,
+		arg.UserID,
+		arg.IsPrerelease,
+		arg.IsPrerelease,
+		arg.StarType,
+		arg.StarType,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -377,6 +385,7 @@ FROM
 WHERE
   ` + "`" + `repository_stars` + "`" + `.` + "`" + `user_id` + "`" + ` = ?
   AND (? IS NULL OR ` + "`" + `is_prerelease` + "`" + ` = ?)
+  AND (? IS NULL OR ` + "`" + `repository_stars` + "`" + `.` + "`" + `type` + "`" + ` = ?)
 ORDER BY
   releases.released_at DESC
 LIMIT
@@ -386,6 +395,7 @@ LIMIT
 type GetReleasesForUserShortDescriptionParams struct {
 	UserID       int32
 	IsPrerelease sql.NullBool
+	StarType     sql.NullInt16
 }
 
 type GetReleasesForUserShortDescriptionRow struct {
@@ -409,7 +419,13 @@ type GetReleasesForUserShortDescriptionRow struct {
 }
 
 func (q *Queries) GetReleasesForUserShortDescription(ctx context.Context, arg GetReleasesForUserShortDescriptionParams) ([]GetReleasesForUserShortDescriptionRow, error) {
-	rows, err := q.db.QueryContext(ctx, getReleasesForUserShortDescription, arg.UserID, arg.IsPrerelease, arg.IsPrerelease)
+	rows, err := q.db.QueryContext(ctx, getReleasesForUserShortDescription,
+		arg.UserID,
+		arg.IsPrerelease,
+		arg.IsPrerelease,
+		arg.StarType,
+		arg.StarType,
+	)
 	if err != nil {
 		return nil, err
 	}

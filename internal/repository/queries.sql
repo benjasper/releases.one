@@ -228,6 +228,7 @@ WHERE
   `repository_stars`.`user_id` = ?
   AND `users`.`is_public` = true
   AND (sqlc.narg('is_prerelease') IS NULL OR `is_prerelease` = sqlc.narg('is_prerelease'))
+  AND (sqlc.narg('star_type') IS NULL OR `repository_stars`.`type` = sqlc.narg('star_type'))
 ORDER BY
   releases.released_at DESC
 LIMIT
@@ -259,6 +260,7 @@ FROM
 WHERE
   `repository_stars`.`user_id` = ?
   AND (sqlc.narg('is_prerelease') IS NULL OR `is_prerelease` = sqlc.narg('is_prerelease'))
+  AND (sqlc.narg('star_type') IS NULL OR `repository_stars`.`type` = sqlc.narg('star_type'))
 ORDER BY
   releases.released_at DESC
 LIMIT
