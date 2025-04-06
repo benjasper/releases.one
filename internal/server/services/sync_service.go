@@ -194,7 +194,7 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 			GithubID:     repo.ID,
 			Name:         repo.NameWithOwner,
 			Url:          repo.URL,
-			ImageUrl:     repo.OpenGraphImageURL,
+			ImageUrl:     fmt.Sprintf("https://opengraph.githubassets.com/1/%s", repo.NameWithOwner),
 			ImageSize:    0,
 			Private:      repo.IsPrivate,
 			CreatedAt:    time.Now(),
@@ -238,7 +238,7 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 			_, err = s.repository.UpdateRepository(ctx, repository.UpdateRepositoryParams{
 				ID:           githubRepo.ID,
 				Url:          githubRepo.Url,
-				ImageUrl:     githubRepo.ImageUrl,
+				ImageUrl:     fmt.Sprintf("https://opengraph.githubassets.com/1/%s", githubRepo.Name),
 				ImageSize:    githubRepo.ImageSize,
 				Private:      githubRepo.Private,
 				CreatedAt:    githubRepo.CreatedAt,
