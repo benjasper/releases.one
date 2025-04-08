@@ -135,8 +135,13 @@ func (s *Server) Start() {
 	})
 	corsHandledMux := corsConfig.Handler(mux)
 
-	slog.Info("Starting server on port 80")
-	http.ListenAndServe(":80", h2c.NewHandler(corsHandledMux, &http2.Server{}))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "80"
+	}
+
+	slog.Info(fmt.Sprintf("Starting server on port %s", port))
+	http.ListenAndServe(fmt.Sprintf(":%s", port), h2c.NewHandler(corsHandledMux, &http2.Server{}))
 }
 
 func (s *Server) CreateViteTemplate() (*bytes.Buffer, error) {
