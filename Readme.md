@@ -1,4 +1,4 @@
-# Releases.one
+# Releases.one 🧵🛜
 
 An app to provide you with a feed of releases from your starred and subscribed GitHub repositories.
 
@@ -13,7 +13,7 @@ An app to provide you with a feed of releases from your starred and subscribed G
 You login with your GitHub which gives the app access to your starred and subscribed repositories (and nothing else).
 
 The app then uses the GitHub GraphQL API (with your token) to get the releases for each repository. Each request fetches 50 repositories at a time.
-One request consumes one of [GitHubs points of rate](https://docs.github.com/en/graphql/overview/rate-limits-and-node-limits-for-the-graphql-api#primary-rate-limit) limit tokens (not much, you have 5000 per hour).
+One request consumes one point of [GitHubs rate limit tokens](https://docs.github.com/en/graphql/overview/rate-limits-and-node-limits-for-the-graphql-api#primary-rate-limit) (not much, you have 5000 per hour).
 It keeps the releases in a database and resyncs your list every 2 hours.
 That means you will have the latest releases with a maximum delay of 2 hours. Bonus: Users are not synced at the same time.
 So the more users have the same repos in their lists the more frequent the update interval gets.
