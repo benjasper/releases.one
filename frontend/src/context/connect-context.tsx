@@ -18,10 +18,8 @@ const authInterceptor: Interceptor = next => async req => {
 	return await next(req)
 }
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL
-
 const transport = createConnectTransport({
-	baseUrl: baseUrl,
+	baseUrl: '/',
 	useBinaryFormat: true,
 	interceptors: [authInterceptor],
 	fetch: (url, options) => {

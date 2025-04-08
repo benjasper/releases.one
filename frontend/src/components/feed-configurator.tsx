@@ -31,11 +31,13 @@ const FeedConfigurator: Component = () => {
 		return params.toString()
 	})
 
+	const baseUrl = `${window.location.protocol}//${window.location.hostname}`;
+
 	const rssFeed = createMemo(
-		() => `${import.meta.env.VITE_API_BASE_URL}/rss/${state.user?.publicId ?? ''}?${query()}`
+		() => `${baseUrl}/rss/${state.user?.publicId ?? ''}?${query()}`
 	)
 	const atomFeed = createMemo(
-		() => `${import.meta.env.VITE_API_BASE_URL}/atom/${state.user?.publicId ?? ''}?${query()}`
+		() => `${baseUrl}/atom/${state.user?.publicId ?? ''}?${query()}`
 	)
 
 	const setUserPublic = async (isPublic: boolean) => {

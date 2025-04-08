@@ -10,7 +10,6 @@ const LoginPage: Component = () => {
 	const navigate = useNavigate()
 	const state = useState()
 	const [showGithubLogin, setShowGithubLogin] = createSignal(false)
-	const baseUrl = import.meta.env.VITE_API_BASE_URL
 
 	onMount(async () => {
 		if (await isAuthenticated()) {
@@ -31,7 +30,7 @@ const LoginPage: Component = () => {
 	return (
 		<div class="flex h-dvh justify-center items-center">
 			<Show when={showGithubLogin()} fallback={<ImSpinner3 class="animate-spin w-8 h-8" />}>
-				<a href={`${baseUrl}/api/login/github`} class={buttonVariants({ variant: 'default' })}>
+				<a href={`/api/login/github`} class={buttonVariants({ variant: 'default' })}>
 					Login with GitHub <AiOutlineGithub />
 				</a>
 			</Show>

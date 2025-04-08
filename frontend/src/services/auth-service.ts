@@ -4,7 +4,7 @@ import { createConnectTransport } from '@connectrpc/connect-web'
 import { AuthService } from '~/lib/generated/api/v1/api_pb'
 
 const transport = createConnectTransport({
-	baseUrl: import.meta.env.VITE_API_BASE_URL,
+	baseUrl: '/',
 	useBinaryFormat: true,
 	fetch: (url, options) => {
 		return fetch(url, {credentials: 'include', ...options})
