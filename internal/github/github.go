@@ -39,7 +39,7 @@ func NewGitHubService(ctx context.Context, oauthConfig *oauth2.Config, token *oa
 	}, refreshedToken, nil
 }
 
-var pageSize = 50
+var pageSize = 25
 
 func (s *GitHubService) GetStarredRepos(ctx context.Context) iter.Seq2[*Repository, error] {
 	return func(yield func(*Repository, error) bool) {
@@ -68,6 +68,11 @@ func (s *GitHubService) GetStarredRepos(ctx context.Context) iter.Seq2[*Reposito
 				return
 			}
 			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				yield(nil, fmt.Errorf("unexpected response from GitHub, while fetching starred repos, status: %s", resp.Status))
+				return
+			}
 
 			var starredReposResponse StarredReposResponse
 			if err := json.NewDecoder(resp.Body).Decode(&starredReposResponse); err != nil {
@@ -127,6 +132,11 @@ func (s *GitHubService) GetWatchingRepos(ctx context.Context) iter.Seq2[*Reposit
 				return
 			}
 			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				yield(nil, fmt.Errorf("unexpected response from GitHub, while fetching watching repos, status: %s", resp.Status))
+				return
+			}
 
 			var watchingReposResponse WatchingReposResponse
 			if err := json.NewDecoder(resp.Body).Decode(&watchingReposResponse); err != nil {
