@@ -213,11 +213,6 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 	} else if err != nil {
 		return err
 	} else {
-		// If the repository was updated in the last hour, don't sync it
-		if githubRepo.UpdatedAt.After(time.Now().Add(1 * time.Hour)) {
-			return nil
-		}
-
 		// In case the image changed, refetch the image size
 		// if repo.OpenGraphImageURL != githubRepo.ImageUrl {
 		// 	openGraphImageSize, err := githubService.GetImageSize(ctx, repo.OpenGraphImageURL)
@@ -352,13 +347,19 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 		}
 	}
 
-	// Find the date of the 10th most recent release
-	var oldestRelease *repository.Release
+	// Re-fetch releases after syncing to get the updated count
+	releases, err = s.repository.GetReleases(ctx, githubRepo.ID)
+	if err != nil {
+		return err
+	}
+
+	// Delete releases beyond the 10 most recent (releases are sorted newest-first)
 	if len(releases) > 10 {
-		oldestRelease = &releases[len(releases)-10]
+		// The 10th release is at index 9 (0-indexed), delete everything older than it
+		tenthNewestRelease := &releases[9]
 
 		result, err = s.repository.DeleteReleasesOlderThan(ctx, repository.DeleteReleasesOlderThanParams{
-			ReleasedAt:   oldestRelease.ReleasedAt,
+			ReleasedAt:   tenthNewestRelease.ReleasedAt,
 			RepositoryID: githubRepo.ID,
 		})
 		if err != nil {
@@ -369,7 +370,7 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 		if err != nil {
 			return err
 		}
-		slog.Info(fmt.Sprintf("Deleted %d releases older than %s for repository: %s", rowsAffected, oldestRelease.ReleasedAt.String(), repo.NameWithOwner))
+		slog.Info(fmt.Sprintf("Deleted %d releases older than %s for repository: %s", rowsAffected, tenthNewestRelease.ReleasedAt.String(), repo.NameWithOwner))
 	}
 
 	return nil
