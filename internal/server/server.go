@@ -184,7 +184,13 @@ func (s *Server) ScheduleJobs() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, err = scheduler.NewJob(gocron.CronJob("*/5 * * * *", false), gocron.NewTask(func(s *Server) {
+
+	syncCron := os.Getenv("SYNC_CRON")
+	if syncCron == "" {
+		syncCron = "*/5 * * * *"
+	}
+
+	_, err = scheduler.NewJob(gocron.CronJob(syncCron, false), gocron.NewTask(func(s *Server) {
 		interval := s.config.UserSyncInterval
 		if interval == 0 {
 			interval = 8
