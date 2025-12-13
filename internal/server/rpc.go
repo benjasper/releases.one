@@ -94,7 +94,7 @@ func (s *RpcServer) Sync(ctx context.Context, req *connect.Request[apiv1.SyncReq
 			ReleasedAt:     timestamppb.New(release.ReleasedAt),
 			RepositoryName: release.RepositoryName.String,
 			ImageUrl:       release.ImageUrl.String,
-			StarType:       apiv1.RepositoryStarType(release.RepositoryStarType),
+			StarType:       apiv1.RepositoryStarType(release.RepositoryStarType.(int64)),
 		})
 	}
 
@@ -149,7 +149,7 @@ func (s *RpcServer) GetRepositories(ctx context.Context, req *connect.Request[ap
 			RepositoryName: release.RepositoryName.String,
 			RepositoryUrl:  release.RepositoryUrl.String,
 			ImageUrl:       release.ImageUrl.String,
-			StarType:       apiv1.RepositoryStarType(release.RepositoryStarType),
+			StarType:       apiv1.RepositoryStarType(release.RepositoryStarType.(int64)),
 		})
 	}
 

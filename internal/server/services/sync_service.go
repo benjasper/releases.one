@@ -247,11 +247,12 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 		}
 	}
 
-	// Now check if the repository has already been starred by the user
+	// Now check if the repository has already been starred/watched by the user
 	result, err := s.repository.UpdateRepositoryStar(ctx, repository.UpdateRepositoryStarParams{
 		UpdatedAt:    time.Now(),
 		RepositoryID: githubRepo.ID,
 		UserID:       user.ID,
+		Type:         int8(starType),
 	})
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 	} else if err != nil {

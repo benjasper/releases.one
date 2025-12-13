@@ -137,7 +137,8 @@ SET
   updated_at = ?
 WHERE
   repository_id = ?
-  AND user_id = ?;
+  AND user_id = ?
+  AND type = ?;
 
 -- name: DeleteRepositoryStarsUpdatedBefore :execresult
 DELETE FROM repository_stars
@@ -200,7 +201,7 @@ ORDER BY
   released_at DESC;
 
 -- name: GetReleasesForUser :many
-SELECT
+SELECT DISTINCT
   `releases`.`id`,
   `releases`.`github_id`,
   `releases`.`repository_id`,
@@ -252,7 +253,7 @@ SELECT
   `repositories`.`image_url` AS image_url,
   `repositories`.`image_size` AS image_size,
   `repositories`.`url` AS repository_url,
-  `repository_stars`.`type` AS repository_star_type
+  MIN(`repository_stars`.`type`) AS repository_star_type
 FROM
   `releases`
   LEFT JOIN `repositories` ON `releases`.`repository_id` = `repositories`.`id`
@@ -261,6 +262,23 @@ WHERE
   `repository_stars`.`user_id` = ?
   AND (sqlc.narg('is_prerelease') IS NULL OR `is_prerelease` = sqlc.narg('is_prerelease'))
   AND (sqlc.narg('star_type') IS NULL OR `repository_stars`.`type` = sqlc.narg('star_type'))
+GROUP BY
+  `releases`.`id`,
+  `releases`.`github_id`,
+  `releases`.`repository_id`,
+  `releases`.`name`,
+  `releases`.`url`,
+  `releases`.`tag_name`,
+  `releases`.`description_short`,
+  `releases`.`author`,
+  `releases`.`is_prerelease`,
+  `releases`.`released_at`,
+  `releases`.`created_at`,
+  `releases`.`updated_at`,
+  `repositories`.`name`,
+  `repositories`.`image_url`,
+  `repositories`.`image_size`,
+  `repositories`.`url`
 ORDER BY
   releases.released_at DESC
 LIMIT

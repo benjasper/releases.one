@@ -58,7 +58,7 @@ CREATE TABLE `repository_stars` (
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
   `type` tinyint NOT NULL,
-  PRIMARY KEY (`repository_id`, `user_id`),
+  PRIMARY KEY (`repository_id`, `user_id`, `type`),
   INDEX `user_id` (`user_id`),
   CONSTRAINT `repository_stars_ibfk_1` FOREIGN KEY (`repository_id`) REFERENCES `repositories` (`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
   CONSTRAINT `repository_stars_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON UPDATE NO ACTION ON DELETE CASCADE
