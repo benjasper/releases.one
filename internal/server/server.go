@@ -211,7 +211,7 @@ func (s *Server) ScheduleJobs() {
 			err = s.syncService.SyncUser(ctx, &user)
 			if err != nil {
 				slog.Info(fmt.Sprintf("Failed to sync user: %s", err.Error()))
-				return
+				continue
 			}
 		}
 	}, s))
