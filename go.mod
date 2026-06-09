@@ -1,5 +1,7 @@
 module github.com/benjasper/releases.one
 
+replace github.com/gorilla/feeds => github.com/benjasper/gorilla-feeds v0.0.0-20260609115509-bf8c82527b97
+
 go 1.23.3
 
 require (
