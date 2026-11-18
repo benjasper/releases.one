@@ -7,10 +7,14 @@ tasks:
   generate-sqlc:
     cmds:
       - sqlc generate
+  generate-schema:
+    cmds:
+      - atlas schema inspect -u file://schema.sql --dev-url "docker://mysql/8/example" > internal/migrate/schema.hcl
   generate:
     cmds:
       - task: generate-proto
       - task: generate-sqlc
+      - task: generate-schema
 
   migrations-apply:
     cmd: atlas schema apply -u "mysql://root:123@localhost:3306/releases" --to file://schema.sql --dev-url "docker://mysql/8/example"

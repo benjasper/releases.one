@@ -31,8 +31,11 @@ So the more users have the same repos in their lists the more frequent the updat
 This project uses [Task](https://taskfile.dev/) to run the commands.
 
 1. `docker-compose up -d` to start the database
-2. `migrations-apply` to apply the db schema
 2. `task dev` to start the api and frontend
+
+The api migrates the database on startup. It diffs the live database against `schema.sql` and applies only additive
+changes (new tables, columns, indexes and foreign keys). Drops are skipped and have to be done by hand.
+After changing `schema.sql`, run `task generate` to regenerate the embedded `internal/migrate/schema.hcl`.
 
 ## How to host it yourself
 

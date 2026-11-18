@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 
 	"github.com/benjasper/releases.one/internal/config"
+	"github.com/benjasper/releases.one/internal/migrate"
 	"github.com/benjasper/releases.one/internal/repository"
 	"github.com/benjasper/releases.one/internal/server"
 	_ "github.com/go-sql-driver/mysql"
@@ -68,6 +70,10 @@ func main() {
 	err = db.Ping()
 	if err != nil {
 		log.Fatalf("Error pinging database: %s", err)
+	}
+
+	if err := migrate.Run(context.Background(), db); err != nil {
+		log.Fatalf("Error migrating database: %s", err)
 	}
 
 	repository := repository.New(db)
