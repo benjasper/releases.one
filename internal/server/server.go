@@ -211,7 +211,7 @@ func (s *Server) ScheduleJobs() {
 			ctx, cancel := context.WithTimeoutCause(context.Background(), time.Minute*5, errors.New("syncing user took too long"))
 			err = s.syncService.SyncUser(ctx, user.ID, staleBefore)
 			cancel()
-			if err != nil {
+			if err != nil && !errors.Is(err, services.ErrGithubTokenInvalid) {
 				slog.Error(fmt.Sprintf("Failed to sync user %s: %s", user.Username, err.Error()))
 			}
 		}
@@ -407,6 +407,22 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedTy
 		Link:        &feeds.Link{Href: "https://releases.one"},
 		Description: "A list of all the releases for all of your starred GitHub repositories",
 		Updated:     user.LastSyncedAt,
+	}
+
+	if user.GithubTokenInvalidAt.Valid {
+		invalidAt := user.GithubTokenInvalidAt.Time
+		if invalidAt.After(feed.Updated) {
+			feed.Updated = invalidAt
+		}
+
+		feed.Add(&feeds.Item{
+			// Stable per invalidation so feed readers show it once, and again if the token breaks another time
+			Id:          fmt.Sprintf("releases.one-reauth-%s-%d", user.PublicID, invalidAt.Unix()),
+			Title:       "Log in to releases.one again to keep this feed updated",
+			Link:        &feeds.Link{Href: s.baseURL.JoinPath("api", "login", "github").String()},
+			Description: "releases.one lost access to your GitHub account, so this feed has stopped receiving new releases. Log in again to resume updates.",
+			Created:     invalidAt,
+		})
 	}
 
 	for _, release := range releases {

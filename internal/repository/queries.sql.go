@@ -639,7 +639,7 @@ func (q *Queries) GetStarListsForUser(ctx context.Context, userID int32) ([]Star
 
 const getUserByGitHubID = `-- name: GetUserByGitHubID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id, is_onboarded, is_public
+  id, username, github_id, github_token, last_synced_at, public_id, is_onboarded, is_public, github_token_invalid_at
 FROM
   users
 WHERE
@@ -658,13 +658,14 @@ func (q *Queries) GetUserByGitHubID(ctx context.Context, githubID uint64) (User,
 		&i.PublicID,
 		&i.IsOnboarded,
 		&i.IsPublic,
+		&i.GithubTokenInvalidAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id, is_onboarded, is_public
+  id, username, github_id, github_token, last_synced_at, public_id, is_onboarded, is_public, github_token_invalid_at
 FROM
   users
 WHERE
@@ -683,13 +684,14 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.PublicID,
 		&i.IsOnboarded,
 		&i.IsPublic,
+		&i.GithubTokenInvalidAt,
 	)
 	return i, err
 }
 
 const getUserByPublicID = `-- name: GetUserByPublicID :one
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id, is_onboarded, is_public
+  id, username, github_id, github_token, last_synced_at, public_id, is_onboarded, is_public, github_token_invalid_at
 FROM
   users
 WHERE
@@ -708,17 +710,19 @@ func (q *Queries) GetUserByPublicID(ctx context.Context, publicID string) (User,
 		&i.PublicID,
 		&i.IsOnboarded,
 		&i.IsPublic,
+		&i.GithubTokenInvalidAt,
 	)
 	return i, err
 }
 
 const getUsersInNeedOfAnUpdate = `-- name: GetUsersInNeedOfAnUpdate :many
 SELECT
-  id, username, github_id, github_token, last_synced_at, public_id, is_onboarded, is_public
+  id, username, github_id, github_token, last_synced_at, public_id, is_onboarded, is_public, github_token_invalid_at
 FROM
   users
 WHERE
   last_synced_at < ?
+  AND github_token_invalid_at IS NULL
 ORDER BY
   last_synced_at ASC
 LIMIT
@@ -748,6 +752,7 @@ func (q *Queries) GetUsersInNeedOfAnUpdate(ctx context.Context, arg GetUsersInNe
 			&i.PublicID,
 			&i.IsOnboarded,
 			&i.IsPublic,
+			&i.GithubTokenInvalidAt,
 		); err != nil {
 			return nil, err
 		}
@@ -815,6 +820,24 @@ func (q *Queries) InsertRelease(ctx context.Context, arg InsertReleaseParams) er
 		arg.UpdatedAt,
 		arg.IsPrerelease,
 	)
+	return err
+}
+
+const markUserGithubTokenInvalid = `-- name: MarkUserGithubTokenInvalid :exec
+UPDATE users
+SET
+  github_token_invalid_at = ?
+WHERE
+  id = ?
+`
+
+type MarkUserGithubTokenInvalidParams struct {
+	GithubTokenInvalidAt sql.NullTime
+	ID                   int32
+}
+
+func (q *Queries) MarkUserGithubTokenInvalid(ctx context.Context, arg MarkUserGithubTokenInvalidParams) error {
+	_, err := q.db.ExecContext(ctx, markUserGithubTokenInvalid, arg.GithubTokenInvalidAt, arg.ID)
 	return err
 }
 
@@ -966,7 +989,8 @@ func (q *Queries) UpdateUserSyncedAt(ctx context.Context, arg UpdateUserSyncedAt
 const updateUserToken = `-- name: UpdateUserToken :exec
 UPDATE users
 SET
-  github_token = ?
+  github_token = ?,
+  github_token_invalid_at = NULL
 WHERE
   id = ?
 `

@@ -23,6 +23,8 @@ import (
 	"github.com/gomarkdown/markdown/parser"
 )
 
+var ErrGithubTokenInvalid = errors.New("GitHub token is no longer valid, the user has to log in again")
+
 type SyncService struct {
 	repository        *repository.Queries
 	githubOAuthConfig *oauth2.Config
@@ -51,10 +53,33 @@ func (s *SyncService) SyncUser(ctx context.Context, userID int32, staleBefore ti
 		return err
 	}
 
+	if user.GithubTokenInvalidAt.Valid {
+		return ErrGithubTokenInvalid
+	}
+
 	if !user.LastSyncedAt.Before(staleBefore) {
 		return nil
 	}
 
+	err = s.syncUser(ctx, &user)
+	if err != nil && github.IsTokenInvalid(err) {
+		slog.Warn(fmt.Sprintf("GitHub token of user %s is no longer valid, pausing syncs until they log in again: %s", user.Username, err.Error()))
+
+		markErr := s.repository.MarkUserGithubTokenInvalid(context.WithoutCancel(ctx), repository.MarkUserGithubTokenInvalidParams{
+			GithubTokenInvalidAt: sql.NullTime{Time: time.Now(), Valid: true},
+			ID:                   user.ID,
+		})
+		if markErr != nil {
+			return errors.Join(err, markErr)
+		}
+
+		return errors.Join(ErrGithubTokenInvalid, err)
+	}
+
+	return err
+}
+
+func (s *SyncService) syncUser(ctx context.Context, user *repository.User) error {
 	slog.Info(fmt.Sprintf("Syncing user: %s", user.Username))
 
 	syncStartedAt := time.Now()
@@ -78,9 +103,9 @@ func (s *SyncService) SyncUser(ctx context.Context, userID int32, staleBefore ti
 	}
 
 	// GitHub refresh tokens are single-use, so a refresh during the sync must be persisted even if the sync fails
-	defer s.saveTokenIfRefreshed(context.WithoutCancel(ctx), &user, githubService, savedToken)
+	defer s.saveTokenIfRefreshed(context.WithoutCancel(ctx), user, githubService, savedToken)
 
-	err = s.syncRepositoriesAndReleases(ctx, &user, githubService)
+	err = s.syncRepositoriesAndReleases(ctx, user, githubService)
 	if err != nil {
 		return err
 	}
@@ -89,7 +114,7 @@ func (s *SyncService) SyncUser(ctx context.Context, userID int32, staleBefore ti
 	cutoff := syncStartedAt.Truncate(time.Second)
 
 	// Star lists are optional, a failure must not block the regular sync or wipe existing memberships
-	if err := s.syncStarLists(ctx, &user, githubService, cutoff); err != nil {
+	if err := s.syncStarLists(ctx, user, githubService, cutoff); err != nil {
 		slog.Error(fmt.Sprintf("Failed to sync star lists for user %s: %s", user.Username, err.Error()))
 	}
 
@@ -123,7 +148,9 @@ func (s *SyncService) SyncUser(ctx context.Context, userID int32, staleBefore ti
 func (s *SyncService) saveTokenIfRefreshed(ctx context.Context, user *repository.User, githubService *github.GitHubService, savedToken *oauth2.Token) {
 	token, err := githubService.Token()
 	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to get current token for user %s: %s", user.Username, err.Error()))
+		if !github.IsTokenInvalid(err) {
+			slog.Error(fmt.Sprintf("Failed to get current token for user %s: %s", user.Username, err.Error()))
+		}
 		return
 	}
 

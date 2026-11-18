@@ -31,7 +31,15 @@ VALUES
 -- name: UpdateUserToken :exec
 UPDATE users
 SET
-  github_token = ?
+  github_token = ?,
+  github_token_invalid_at = NULL
+WHERE
+  id = ?;
+
+-- name: MarkUserGithubTokenInvalid :exec
+UPDATE users
+SET
+  github_token_invalid_at = ?
 WHERE
   id = ?;
 
@@ -71,6 +79,7 @@ FROM
   users
 WHERE
   last_synced_at < ?
+  AND github_token_invalid_at IS NULL
 ORDER BY
   last_synced_at ASC
 LIMIT

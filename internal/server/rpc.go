@@ -55,9 +55,9 @@ func (s *RpcServer) Sync(ctx context.Context, req *connect.Request[apiv1.SyncReq
 		return nil, errors.Join(err, errors.New("failed to retrieve user"))
 	}
 
-	// Only sync if it's been more than 24 hours since the last sync
+	// Only sync if it's been more than 24 hours since the last sync, an invalid token still returns the existing timeline
 	err = s.syncService.SyncUser(ctx, user.ID, time.Now().Add(-1*time.Hour*24))
-	if err != nil {
+	if err != nil && !errors.Is(err, services.ErrGithubTokenInvalid) {
 		slog.Error(fmt.Sprintf("Failed to sync user: %s", err.Error()))
 		return nil, errors.Join(err, errors.New("failed to sync user"))
 	}
@@ -300,12 +300,13 @@ func (s *RpcServer) GetMyUser(ctx context.Context, req *connect.Request[apiv1.Ge
 	}
 
 	res := connect.NewResponse(&apiv1.GetMyUserResponse{
-		Id:           user.ID,
-		LastSyncedAt: timestamppb.New(user.LastSyncedAt),
-		IsPublic:     user.IsPublic,
-		PublicId:     user.PublicID,
-		Name:         user.Username,
-		IsOnboarded:  user.IsOnboarded,
+		Id:                   user.ID,
+		LastSyncedAt:         timestamppb.New(user.LastSyncedAt),
+		IsPublic:             user.IsPublic,
+		PublicId:             user.PublicID,
+		Name:                 user.Username,
+		IsOnboarded:          user.IsOnboarded,
+		GithubReauthRequired: user.GithubTokenInvalidAt.Valid,
 	})
 
 	return res, nil

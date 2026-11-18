@@ -73,6 +73,7 @@ message GetMyUserResponse {
 	string public_id = 4;
 	string name = 5;
 	bool is_onboarded = 6;
+	bool github_reauth_required = 7;
 }
 
 message LogoutRequest {}

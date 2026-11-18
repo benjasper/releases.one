@@ -66,12 +66,13 @@ type StarListRepository struct {
 }
 
 type User struct {
-	ID           int32
-	Username     string
-	GithubID     uint64
-	GithubToken  GitHubToken
-	LastSyncedAt time.Time
-	PublicID     string
-	IsOnboarded  bool
-	IsPublic     bool
+	ID                   int32
+	Username             string
+	GithubID             uint64
+	GithubToken          GitHubToken
+	LastSyncedAt         time.Time
+	PublicID             string
+	IsOnboarded          bool
+	IsPublic             bool
+	GithubTokenInvalidAt sql.NullTime
 }

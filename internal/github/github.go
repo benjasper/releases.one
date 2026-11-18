@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"golang.org/x/oauth2"
 )
@@ -43,6 +44,23 @@ func NewGitHubService(ctx context.Context, oauthConfig *oauth2.Config, token *oa
 // Token returns the current token, which differs from the initial one if the client refreshed it while in use
 func (s *GitHubService) Token() (*oauth2.Token, error) {
 	return s.tokenSource.Token()
+}
+
+var ErrUnauthorized = errors.New("GitHub rejected the token")
+
+// IsTokenInvalid reports whether err means the user's token can no longer be used and they have to log in again
+func IsTokenInvalid(err error) bool {
+	if errors.Is(err, ErrUnauthorized) {
+		return true
+	}
+
+	var retrieveErr *oauth2.RetrieveError
+	if errors.As(err, &retrieveErr) {
+		return retrieveErr.ErrorCode == "bad_refresh_token" || retrieveErr.ErrorCode == "invalid_grant"
+	}
+
+	// oauth2 doesn't export this error, it happens for expired tokens that were issued without a refresh token
+	return strings.Contains(err.Error(), "token expired and refresh token is not set")
 }
 
 var pageSize = 25
@@ -139,6 +157,10 @@ func (s *GitHubService) postGraphQL(ctx context.Context, payload any, out any) e
 		return errors.Join(err, errors.New("failed to make GraphQL request to GitHub"))
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return ErrUnauthorized
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected response from GitHub GraphQL API, status: %s", resp.Status)

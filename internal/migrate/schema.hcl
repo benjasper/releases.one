@@ -289,6 +289,10 @@ table "users" {
     null = false
     type = bool
   }
+  column "github_token_invalid_at" {
+    null = true
+    type = datetime
+  }
   primary_key {
     columns = [column.id]
   }

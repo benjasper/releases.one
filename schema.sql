@@ -46,6 +46,7 @@ CREATE TABLE `users` (
   `public_id` varchar(255) NOT NULL,
   `is_onboarded` bool NOT NULL,
   `is_public` bool NOT NULL,
+  `github_token_invalid_at` datetime NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `github_id` (`github_id`),
   INDEX `public_id` (`public_id`)

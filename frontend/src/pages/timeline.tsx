@@ -8,6 +8,7 @@ import { TextField, TextFieldInput } from '~/components/ui/text-field'
 import { formatDistance } from 'date-fns/formatDistance'
 import { Tooltip, TooltipContent, TooltipTrigger } from '~/components/ui/tooltip'
 import Navbar from '~/components/navbar'
+import ReauthBanner from '~/components/reauth-banner'
 import { Skeleton } from '~/components/ui/skeleton'
 import { FiArrowUp, FiExternalLink, FiEye, FiFilter, FiStar } from 'solid-icons/fi'
 import { RepositoryStarType } from '~/lib/generated/api/v1/api_pb'
@@ -94,6 +95,7 @@ const TimelinePage: Component = () => {
 					<FiArrowUp class="w-6 h-6" />
 				</Button>
 				<Navbar />
+				<ReauthBanner />
 				<div class="flex gap-4 items-center justify-between md:justify-start">
 					<TextField>
 						<TextFieldInput
