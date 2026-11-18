@@ -15,7 +15,7 @@ type LocalStore = {
 const Context = createContext<[get: Store<LocalStore>, set: SetStoreFunction<LocalStore>]>()
 
 export const LocalStoreProvider: ParentComponent = props => {
-	const [getLocalStorage, setLocalStorage] = makePersisted(createStore<LocalStore>({
+	const [getLocalStorage, setLocalStorage] = makePersisted<LocalStore, [Store<LocalStore>, SetStoreFunction<LocalStore>]>(createStore<LocalStore>({
 		settings: {
 			showPrereleases: true,
 			showDescription: true,
