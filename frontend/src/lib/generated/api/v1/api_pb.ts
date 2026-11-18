@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file api/v1/api.proto.
  */
 export const file_api_v1_api: GenFile = /*@__PURE__*/
-  fileDesc("ChBhcGkvdjEvYXBpLnByb3RvEgZhcGkudjEiTQoHUmVsZWFzZRIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSDgoGYXV0aG9yGAQgASgJIk8KClJlcG9zaXRvcnkSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRILCgN1cmwYAyABKAkSEQoJaW1hZ2VfdXJsGAQgASgJIr8CCg1UaW1lbGluZUVudHJ5EgoKAmlkGAEgASgFEhUKDXJlcG9zaXRvcnlfaWQYAiABKAUSDAoEbmFtZRgDIAEoCRILCgN1cmwYBCABKAkSEAoIdGFnX25hbWUYBSABKAkSEwoLZGVzY3JpcHRpb24YBiABKAkSFQoNaXNfcHJlcmVsZWFzZRgHIAEoCBIvCgtyZWxlYXNlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFwoPcmVwb3NpdG9yeV9uYW1lGAkgASgJEhEKCWltYWdlX3VybBgKIAEoCRIOCgZhdXRob3IYCyABKAkSFgoOcmVwb3NpdG9yeV91cmwYDCABKAkSLQoJc3Rhcl90eXBlGA0gASgOMhouYXBpLnYxLlJlcG9zaXRvcnlTdGFyVHlwZSIfCgtTeW5jUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCSJQCgxTeW5jUmVzcG9uc2USJwoIdGltZWxpbmUYASADKAsyFS5hcGkudjEuVGltZWxpbmVFbnRyeRIXCg9yZXBvc2l0b3J5Q291bnQYAiABKAUibgoWR2V0UmVwb3NpdG9yaWVzUmVxdWVzdBISCgpwcmVyZWxlYXNlGAEgASgIEjIKCXN0YXJfdHlwZRgCIAEoDjIaLmFwaS52MS5SZXBvc2l0b3J5U3RhclR5cGVIAIgBAUIMCgpfc3Rhcl90eXBlIkIKF0dldFJlcG9zaXRvcmllc1Jlc3BvbnNlEicKCHRpbWVsaW5lGAEgAygLMhUuYXBpLnYxLlRpbWVsaW5lRW50cnkiLgobVG9vZ2xlVXNlclB1YmxpY0ZlZWRSZXF1ZXN0Eg8KB2VuYWJsZWQYASABKAgiMQocVG9vZ2xlVXNlclB1YmxpY0ZlZWRSZXNwb25zZRIRCglwdWJsaWNfaWQYASABKAkiEgoQR2V0TXlVc2VyUmVxdWVzdCKdAQoRR2V0TXlVc2VyUmVzcG9uc2USCgoCaWQYASABKAUSMgoObGFzdF9zeW5jZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWlzX3B1YmxpYxgDIAEoCBIRCglwdWJsaWNfaWQYBCABKAkSDAoEbmFtZRgFIAEoCRIUCgxpc19vbmJvYXJkZWQYBiABKAgiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSIcChpUb2dnbGVVc2VyT25ib2FyZGVkUmVxdWVzdCIdChtUb2dnbGVVc2VyT25ib2FyZGVkUmVzcG9uc2UiFQoTUmVmcmVzaFRva2VuUmVxdWVzdCK+AQoUUmVmcmVzaFRva2VuUmVzcG9uc2USFAoMYWNjZXNzX3Rva2VuGAEgASgJEhUKDXJlZnJlc2hfdG9rZW4YAiABKAkSOwoXYWNjZXNzX3Rva2VuX2V4cGlyZXNfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjwKGHJlZnJlc2hfdG9rZW5fZXhwaXJlc19hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAqKQoSUmVwb3NpdG9yeVN0YXJUeXBlEggKBFNUQVIQABIJCgVXQVRDSBABMtEDCgpBcGlTZXJ2aWNlEjEKBFN5bmMSEy5hcGkudjEuU3luY1JlcXVlc3QaFC5hcGkudjEuU3luY1Jlc3BvbnNlElIKD0dldFJlcG9zaXRvcmllcxIeLmFwaS52MS5HZXRSZXBvc2l0b3JpZXNSZXF1ZXN0Gh8uYXBpLnYxLkdldFJlcG9zaXRvcmllc1Jlc3BvbnNlEmEKFFRvb2dsZVVzZXJQdWJsaWNGZWVkEiMuYXBpLnYxLlRvb2dsZVVzZXJQdWJsaWNGZWVkUmVxdWVzdBokLmFwaS52MS5Ub29nbGVVc2VyUHVibGljRmVlZFJlc3BvbnNlEkAKCUdldE15VXNlchIYLmFwaS52MS5HZXRNeVVzZXJSZXF1ZXN0GhkuYXBpLnYxLkdldE15VXNlclJlc3BvbnNlEjcKBkxvZ291dBIVLmFwaS52MS5Mb2dvdXRSZXF1ZXN0GhYuYXBpLnYxLkxvZ291dFJlc3BvbnNlEl4KE1RvZ2dsZVVzZXJPbmJvYXJkZWQSIi5hcGkudjEuVG9nZ2xlVXNlck9uYm9hcmRlZFJlcXVlc3QaIy5hcGkudjEuVG9nZ2xlVXNlck9uYm9hcmRlZFJlc3BvbnNlMlgKC0F1dGhTZXJ2aWNlEkkKDFJlZnJlc2hUb2tlbhIbLmFwaS52MS5SZWZyZXNoVG9rZW5SZXF1ZXN0GhwuYXBpLnYxLlJlZnJlc2hUb2tlblJlc3BvbnNlQj1aO2dpdGh1Yi5jb20vYmVuamFzcGVyL3JlbGVhc2VzLm9uZS9pbnRlcm5hbC9nZW4vYXBpL3YxO2FwaXYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChBhcGkvdjEvYXBpLnByb3RvEgZhcGkudjEiTQoHUmVsZWFzZRIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSDgoGYXV0aG9yGAQgASgJIk8KClJlcG9zaXRvcnkSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRILCgN1cmwYAyABKAkSEQoJaW1hZ2VfdXJsGAQgASgJIr8CCg1UaW1lbGluZUVudHJ5EgoKAmlkGAEgASgFEhUKDXJlcG9zaXRvcnlfaWQYAiABKAUSDAoEbmFtZRgDIAEoCRILCgN1cmwYBCABKAkSEAoIdGFnX25hbWUYBSABKAkSEwoLZGVzY3JpcHRpb24YBiABKAkSFQoNaXNfcHJlcmVsZWFzZRgHIAEoCBIvCgtyZWxlYXNlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFwoPcmVwb3NpdG9yeV9uYW1lGAkgASgJEhEKCWltYWdlX3VybBgKIAEoCRIOCgZhdXRob3IYCyABKAkSFgoOcmVwb3NpdG9yeV91cmwYDCABKAkSLQoJc3Rhcl90eXBlGA0gASgOMhouYXBpLnYxLlJlcG9zaXRvcnlTdGFyVHlwZSIfCgtTeW5jUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCSJQCgxTeW5jUmVzcG9uc2USJwoIdGltZWxpbmUYASADKAsyFS5hcGkudjEuVGltZWxpbmVFbnRyeRIXCg9yZXBvc2l0b3J5Q291bnQYAiABKAUikAEKFkdldFJlcG9zaXRvcmllc1JlcXVlc3QSEgoKcHJlcmVsZWFzZRgBIAEoCBIyCglzdGFyX3R5cGUYAiABKA4yGi5hcGkudjEuUmVwb3NpdG9yeVN0YXJUeXBlSACIAQESFAoHbGlzdF9pZBgDIAEoBUgBiAEBQgwKCl9zdGFyX3R5cGVCCgoIX2xpc3RfaWQiQgoXR2V0UmVwb3NpdG9yaWVzUmVzcG9uc2USJwoIdGltZWxpbmUYASADKAsyFS5hcGkudjEuVGltZWxpbmVFbnRyeSIuChtUb29nbGVVc2VyUHVibGljRmVlZFJlcXVlc3QSDwoHZW5hYmxlZBgBIAEoCCIxChxUb29nbGVVc2VyUHVibGljRmVlZFJlc3BvbnNlEhEKCXB1YmxpY19pZBgBIAEoCSISChBHZXRNeVVzZXJSZXF1ZXN0Ip0BChFHZXRNeVVzZXJSZXNwb25zZRIKCgJpZBgBIAEoBRIyCg5sYXN0X3N5bmNlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJaXNfcHVibGljGAMgASgIEhEKCXB1YmxpY19pZBgEIAEoCRIMCgRuYW1lGAUgASgJEhQKDGlzX29uYm9hcmRlZBgGIAEoCCIPCg1Mb2dvdXRSZXF1ZXN0IhAKDkxvZ291dFJlc3BvbnNlIjgKCFN0YXJMaXN0EgoKAmlkGAEgASgFEgwKBG5hbWUYAiABKAkSEgoKaXNfcHJpdmF0ZRgDIAEoCCIVChNHZXRTdGFyTGlzdHNSZXF1ZXN0IjcKFEdldFN0YXJMaXN0c1Jlc3BvbnNlEh8KBWxpc3RzGAEgAygLMhAuYXBpLnYxLlN0YXJMaXN0IhwKGlRvZ2dsZVVzZXJPbmJvYXJkZWRSZXF1ZXN0Ih0KG1RvZ2dsZVVzZXJPbmJvYXJkZWRSZXNwb25zZSIVChNSZWZyZXNoVG9rZW5SZXF1ZXN0Ir4BChRSZWZyZXNoVG9rZW5SZXNwb25zZRIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFQoNcmVmcmVzaF90b2tlbhgCIAEoCRI7ChdhY2Nlc3NfdG9rZW5fZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASPAoYcmVmcmVzaF90b2tlbl9leHBpcmVzX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCopChJSZXBvc2l0b3J5U3RhclR5cGUSCAoEU1RBUhAAEgkKBVdBVENIEAEynAQKCkFwaVNlcnZpY2USMQoEU3luYxITLmFwaS52MS5TeW5jUmVxdWVzdBoULmFwaS52MS5TeW5jUmVzcG9uc2USUgoPR2V0UmVwb3NpdG9yaWVzEh4uYXBpLnYxLkdldFJlcG9zaXRvcmllc1JlcXVlc3QaHy5hcGkudjEuR2V0UmVwb3NpdG9yaWVzUmVzcG9uc2USYQoUVG9vZ2xlVXNlclB1YmxpY0ZlZWQSIy5hcGkudjEuVG9vZ2xlVXNlclB1YmxpY0ZlZWRSZXF1ZXN0GiQuYXBpLnYxLlRvb2dsZVVzZXJQdWJsaWNGZWVkUmVzcG9uc2USQAoJR2V0TXlVc2VyEhguYXBpLnYxLkdldE15VXNlclJlcXVlc3QaGS5hcGkudjEuR2V0TXlVc2VyUmVzcG9uc2USNwoGTG9nb3V0EhUuYXBpLnYxLkxvZ291dFJlcXVlc3QaFi5hcGkudjEuTG9nb3V0UmVzcG9uc2USXgoTVG9nZ2xlVXNlck9uYm9hcmRlZBIiLmFwaS52MS5Ub2dnbGVVc2VyT25ib2FyZGVkUmVxdWVzdBojLmFwaS52MS5Ub2dnbGVVc2VyT25ib2FyZGVkUmVzcG9uc2USSQoMR2V0U3Rhckxpc3RzEhsuYXBpLnYxLkdldFN0YXJMaXN0c1JlcXVlc3QaHC5hcGkudjEuR2V0U3Rhckxpc3RzUmVzcG9uc2UyWAoLQXV0aFNlcnZpY2USSQoMUmVmcmVzaFRva2VuEhsuYXBpLnYxLlJlZnJlc2hUb2tlblJlcXVlc3QaHC5hcGkudjEuUmVmcmVzaFRva2VuUmVzcG9uc2VCPVo7Z2l0aHViLmNvbS9iZW5qYXNwZXIvcmVsZWFzZXMub25lL2ludGVybmFsL2dlbi9hcGkvdjE7YXBpdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message api.v1.Release
@@ -207,6 +207,11 @@ export type GetRepositoriesRequest = Message<"api.v1.GetRepositoriesRequest"> & 
    * @generated from field: optional api.v1.RepositoryStarType star_type = 2;
    */
   starType?: RepositoryStarType;
+
+  /**
+   * @generated from field: optional int32 list_id = 3;
+   */
+  listId?: number;
 };
 
 /**
@@ -349,6 +354,63 @@ export const LogoutResponseSchema: GenMessage<LogoutResponse> = /*@__PURE__*/
   messageDesc(file_api_v1_api, 12);
 
 /**
+ * @generated from message api.v1.StarList
+ */
+export type StarList = Message<"api.v1.StarList"> & {
+  /**
+   * @generated from field: int32 id = 1;
+   */
+  id: number;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: bool is_private = 3;
+   */
+  isPrivate: boolean;
+};
+
+/**
+ * Describes the message api.v1.StarList.
+ * Use `create(StarListSchema)` to create a new message.
+ */
+export const StarListSchema: GenMessage<StarList> = /*@__PURE__*/
+  messageDesc(file_api_v1_api, 13);
+
+/**
+ * @generated from message api.v1.GetStarListsRequest
+ */
+export type GetStarListsRequest = Message<"api.v1.GetStarListsRequest"> & {
+};
+
+/**
+ * Describes the message api.v1.GetStarListsRequest.
+ * Use `create(GetStarListsRequestSchema)` to create a new message.
+ */
+export const GetStarListsRequestSchema: GenMessage<GetStarListsRequest> = /*@__PURE__*/
+  messageDesc(file_api_v1_api, 14);
+
+/**
+ * @generated from message api.v1.GetStarListsResponse
+ */
+export type GetStarListsResponse = Message<"api.v1.GetStarListsResponse"> & {
+  /**
+   * @generated from field: repeated api.v1.StarList lists = 1;
+   */
+  lists: StarList[];
+};
+
+/**
+ * Describes the message api.v1.GetStarListsResponse.
+ * Use `create(GetStarListsResponseSchema)` to create a new message.
+ */
+export const GetStarListsResponseSchema: GenMessage<GetStarListsResponse> = /*@__PURE__*/
+  messageDesc(file_api_v1_api, 15);
+
+/**
  * @generated from message api.v1.ToggleUserOnboardedRequest
  */
 export type ToggleUserOnboardedRequest = Message<"api.v1.ToggleUserOnboardedRequest"> & {
@@ -359,7 +421,7 @@ export type ToggleUserOnboardedRequest = Message<"api.v1.ToggleUserOnboardedRequ
  * Use `create(ToggleUserOnboardedRequestSchema)` to create a new message.
  */
 export const ToggleUserOnboardedRequestSchema: GenMessage<ToggleUserOnboardedRequest> = /*@__PURE__*/
-  messageDesc(file_api_v1_api, 13);
+  messageDesc(file_api_v1_api, 16);
 
 /**
  * @generated from message api.v1.ToggleUserOnboardedResponse
@@ -372,7 +434,7 @@ export type ToggleUserOnboardedResponse = Message<"api.v1.ToggleUserOnboardedRes
  * Use `create(ToggleUserOnboardedResponseSchema)` to create a new message.
  */
 export const ToggleUserOnboardedResponseSchema: GenMessage<ToggleUserOnboardedResponse> = /*@__PURE__*/
-  messageDesc(file_api_v1_api, 14);
+  messageDesc(file_api_v1_api, 17);
 
 /**
  * @generated from message api.v1.RefreshTokenRequest
@@ -385,7 +447,7 @@ export type RefreshTokenRequest = Message<"api.v1.RefreshTokenRequest"> & {
  * Use `create(RefreshTokenRequestSchema)` to create a new message.
  */
 export const RefreshTokenRequestSchema: GenMessage<RefreshTokenRequest> = /*@__PURE__*/
-  messageDesc(file_api_v1_api, 15);
+  messageDesc(file_api_v1_api, 18);
 
 /**
  * @generated from message api.v1.RefreshTokenResponse
@@ -417,7 +479,7 @@ export type RefreshTokenResponse = Message<"api.v1.RefreshTokenResponse"> & {
  * Use `create(RefreshTokenResponseSchema)` to create a new message.
  */
 export const RefreshTokenResponseSchema: GenMessage<RefreshTokenResponse> = /*@__PURE__*/
-  messageDesc(file_api_v1_api, 16);
+  messageDesc(file_api_v1_api, 19);
 
 /**
  * @generated from enum api.v1.RepositoryStarType
@@ -491,6 +553,14 @@ export const ApiService: GenService<{
     methodKind: "unary";
     input: typeof ToggleUserOnboardedRequestSchema;
     output: typeof ToggleUserOnboardedResponseSchema;
+  },
+  /**
+   * @generated from rpc api.v1.ApiService.GetStarLists
+   */
+  getStarLists: {
+    methodKind: "unary";
+    input: typeof GetStarListsRequestSchema;
+    output: typeof GetStarListsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_api_v1_api, 0);

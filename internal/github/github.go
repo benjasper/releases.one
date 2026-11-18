@@ -169,6 +169,108 @@ func (s *GitHubService) GetWatchingRepos(ctx context.Context) iter.Seq2[*Reposit
 	}
 }
 
+func (s *GitHubService) graphql(ctx context.Context, query string, variables map[string]any, out any) error {
+	requestJson, err := json.Marshal(map[string]any{"query": query, "variables": variables})
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", bytes.NewBuffer(requestJson))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("User-Agent", "releases.one")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return errors.Join(err, errors.New("failed to make GraphQL request to GitHub"))
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected response from GitHub GraphQL API, status: %s", resp.Status)
+	}
+
+	var response struct {
+		Message string `json:"message"`
+		Errors  []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return err
+	}
+
+	if len(response.Errors) > 0 {
+		return fmt.Errorf("GraphQL error: %s", response.Errors[0].Message)
+	}
+
+	if response.Message != "" {
+		return fmt.Errorf("GitHub API error: %s", response.Message)
+	}
+
+	return json.Unmarshal(response.Data, out)
+}
+
+func (s *GitHubService) GetStarLists(ctx context.Context) ([]StarList, error) {
+	var lists []StarList
+
+	after := ""
+	for {
+		variables := map[string]any{"first": 10, "itemsFirst": 100, "after": nil}
+		if after != "" {
+			variables["after"] = after
+		}
+
+		var response StarListsResponse
+		if err := s.graphql(ctx, StarListsQuery, variables, &response); err != nil {
+			return nil, errors.Join(err, errors.New("failed to fetch star lists"))
+		}
+
+		for _, node := range response.Viewer.Lists.Nodes {
+			list := StarList{
+				ID:        node.ID,
+				Name:      node.Name,
+				Slug:      node.Slug,
+				IsPrivate: node.IsPrivate,
+			}
+
+			items := node.Items
+			for {
+				for _, item := range items.Nodes {
+					if item.ID != "" {
+						list.RepositoryIDs = append(list.RepositoryIDs, item.ID)
+					}
+				}
+
+				if !items.PageInfo.HasNextPage {
+					break
+				}
+
+				var itemsResponse StarListItemsResponse
+				err := s.graphql(ctx, StarListItemsQuery, map[string]any{
+					"id":    node.ID,
+					"first": 100,
+					"after": items.PageInfo.EndCursor,
+				}, &itemsResponse)
+				if err != nil {
+					return nil, errors.Join(err, fmt.Errorf("failed to fetch items of star list %s", node.Slug))
+				}
+				items = itemsResponse.Node.Items
+			}
+
+			lists = append(lists, list)
+		}
+
+		if !response.Viewer.Lists.PageInfo.HasNextPage {
+			return lists, nil
+		}
+		after = response.Viewer.Lists.PageInfo.EndCursor
+	}
+}
+
 func (s *GitHubService) GetUserData(ctx context.Context) (*UserData, error) {
 	url := "https://api.github.com/user"
 	resp, err := s.client.Get(url)

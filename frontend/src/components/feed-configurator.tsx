@@ -1,5 +1,5 @@
 import { Link } from '@solidjs/meta'
-import { Component, createEffect, createMemo, createSignal, Match, Show, Switch as SolidSwitch } from 'solid-js'
+import { Component, createEffect, createMemo, createResource, createSignal, Match, Show, Switch as SolidSwitch } from 'solid-js'
 import { useConnect } from '~/context/connect-context'
 import { useState } from '~/context/state-context'
 import { CardDescription, CardTitle } from './ui/card'
@@ -10,13 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 import { FiEye, FiInfo } from 'solid-icons/fi'
 import { AiFillQuestionCircle, AiFillStar } from 'solid-icons/ai'
-import StarTypeSelect from './star-type-select'
+import RepositorySourceSelect, { RepositorySource } from './repository-source-select'
 
 const FeedConfigurator: Component = () => {
 	const connect = useConnect()
 	const state = useState()
 	const [prereleaseEnabled, setPrereleaseEnabled] = createSignal(true)
-	const [starType, setStarType] = createSignal<RepositoryStarType | null>(null)
+	const [source, setSource] = createSignal<RepositorySource>({ starType: null, listId: null })
+	const [starLists] = createResource(async () => (await connect.getStarLists({})).lists)
 
 	state.fetchUser()
 
@@ -24,8 +25,13 @@ const FeedConfigurator: Component = () => {
 		const params = new URLSearchParams()
 		params.set('prerelease', prereleaseEnabled().toString())
 
-		if (starType() !== null) {
-			params.set('starType', starType()!.toString())
+		const { starType, listId } = source()
+		if (starType !== null) {
+			params.set('starType', starType.toString())
+		}
+
+		if (listId !== null) {
+			params.set('list', listId.toString())
 		}
 
 		return params.toString()
@@ -73,7 +79,11 @@ const FeedConfigurator: Component = () => {
 						<div class="flex w-full flex-col space-y-3 justify-items-start max-w-72">
 							<p class="text-sm font-medium leading-none">URLs</p>
 							<p class="text-sm text-muted-foreground">Configure your feed URLs.</p>
-							<StarTypeSelect starType={starType()} onChange={setStarType} />
+							<RepositorySourceSelect
+								{...source()}
+								lists={starLists.state === 'ready' ? starLists() : []}
+								onChange={setSource}
+							/>
 							<Switch
 								class="items-center flex gap-2 justify-between"
 								checked={prereleaseEnabled()}

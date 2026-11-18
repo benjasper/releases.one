@@ -66,6 +66,11 @@ func (s *SyncService) SyncUser(ctx context.Context, user *repository.User) error
 		return err
 	}
 
+	// Star lists are optional, a failure must not block the regular sync or wipe existing memberships
+	if err := s.syncStarLists(ctx, user, githubService, syncStartedAt); err != nil {
+		slog.Error(fmt.Sprintf("Failed to sync star lists for user %s: %s", user.Username, err.Error()))
+	}
+
 	result, err := s.repository.DeleteRepositoryStarsUpdatedBefore(ctx, repository.DeleteRepositoryStarsUpdatedBeforeParams{
 		UpdatedAt: syncStartedAt,
 		UserID:    user.ID,
@@ -162,6 +167,67 @@ func (s *SyncService) syncRepositoriesAndReleases(ctx context.Context, user *rep
 
 		return reposErr
 	}
+
+	return nil
+}
+
+func (s *SyncService) syncStarLists(ctx context.Context, user *repository.User, githubService *github.GitHubService, syncStartedAt time.Time) error {
+	lists, err := githubService.GetStarLists(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, list := range lists {
+		err = s.repository.UpsertStarList(ctx, repository.UpsertStarListParams{
+			GithubID:  list.ID,
+			UserID:    user.ID,
+			Name:      list.Name,
+			Slug:      list.Slug,
+			IsPrivate: list.IsPrivate,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		})
+		if err != nil {
+			return err
+		}
+
+		starList, err := s.repository.GetStarListByGithubID(ctx, list.ID)
+		if err != nil {
+			return err
+		}
+
+		for _, repositoryGithubID := range list.RepositoryIDs {
+			err = s.repository.UpsertStarListRepository(ctx, repository.UpsertStarListRepositoryParams{
+				StarListID:         starList.ID,
+				UpdatedAt:          time.Now(),
+				RepositoryGithubID: repositoryGithubID,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// datetime columns have second precision, so rows written in the same second as syncStartedAt must survive
+	cutoff := syncStartedAt.Truncate(time.Second)
+
+	_, err = s.repository.DeleteStarListRepositoriesUpdatedBefore(ctx, repository.DeleteStarListRepositoriesUpdatedBeforeParams{
+		UpdatedAt: cutoff,
+		UserID:    user.ID,
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = s.repository.DeleteStarListsUpdatedBefore(ctx, repository.DeleteStarListsUpdatedBeforeParams{
+		UpdatedAt: cutoff,
+		UserID:    user.ID,
+	})
+	if err != nil {
+		return err
+	}
+
+	slog.Info(fmt.Sprintf("Synced %d star lists for user: %s", len(lists), user.Username))
 
 	return nil
 }

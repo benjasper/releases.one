@@ -230,6 +230,13 @@ WHERE
   AND `users`.`is_public` = true
   AND (sqlc.narg('is_prerelease') IS NULL OR `is_prerelease` = sqlc.narg('is_prerelease'))
   AND (sqlc.narg('star_type') IS NULL OR `repository_stars`.`type` = sqlc.narg('star_type'))
+  AND (sqlc.narg('list_id') IS NULL OR EXISTS (
+    SELECT 1 FROM `star_list_repositories`
+    INNER JOIN `star_lists` ON `star_list_repositories`.`star_list_id` = `star_lists`.`id`
+    WHERE `star_list_repositories`.`repository_id` = `releases`.`repository_id`
+      AND `star_lists`.`id` = sqlc.narg('list_id')
+      AND `star_lists`.`user_id` = `repository_stars`.`user_id`
+  ))
 ORDER BY
   releases.released_at DESC
 LIMIT
@@ -262,6 +269,13 @@ WHERE
   `repository_stars`.`user_id` = ?
   AND (sqlc.narg('is_prerelease') IS NULL OR `is_prerelease` = sqlc.narg('is_prerelease'))
   AND (sqlc.narg('star_type') IS NULL OR `repository_stars`.`type` = sqlc.narg('star_type'))
+  AND (sqlc.narg('list_id') IS NULL OR EXISTS (
+    SELECT 1 FROM `star_list_repositories`
+    INNER JOIN `star_lists` ON `star_list_repositories`.`star_list_id` = `star_lists`.`id`
+    WHERE `star_list_repositories`.`repository_id` = `releases`.`repository_id`
+      AND `star_lists`.`id` = sqlc.narg('list_id')
+      AND `star_lists`.`user_id` = `repository_stars`.`user_id`
+  ))
 GROUP BY
   `releases`.`id`,
   `releases`.`github_id`,
@@ -283,3 +297,63 @@ ORDER BY
   releases.released_at DESC
 LIMIT
   100;
+
+-- name: UpsertStarList :exec
+INSERT INTO
+  star_lists (github_id, user_id, name, slug, is_private, created_at, updated_at)
+VALUES
+  (?, ?, ?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  slug = VALUES(slug),
+  is_private = VALUES(is_private),
+  updated_at = VALUES(updated_at);
+
+-- name: GetStarListByGithubID :one
+SELECT
+  *
+FROM
+  star_lists
+WHERE
+  github_id = ?;
+
+-- name: GetStarListsForUser :many
+SELECT
+  *
+FROM
+  star_lists
+WHERE
+  user_id = ?
+ORDER BY
+  name ASC;
+
+-- name: UpsertStarListRepository :exec
+INSERT INTO
+  star_list_repositories (star_list_id, repository_id, updated_at)
+SELECT
+  sqlc.arg('star_list_id'), `repositories`.`id`, sqlc.arg('updated_at')
+FROM
+  repositories
+WHERE
+  `repositories`.`github_id` = sqlc.arg('repository_github_id')
+ON DUPLICATE KEY UPDATE
+  updated_at = VALUES(updated_at);
+
+-- name: DeleteStarListRepositoriesUpdatedBefore :execresult
+DELETE FROM star_list_repositories
+WHERE
+  `star_list_repositories`.`updated_at` < sqlc.arg('updated_at')
+  AND `star_list_repositories`.`star_list_id` IN (
+    SELECT
+      `star_lists`.`id`
+    FROM
+      star_lists
+    WHERE
+      `star_lists`.`user_id` = sqlc.arg('user_id')
+  );
+
+-- name: DeleteStarListsUpdatedBefore :execresult
+DELETE FROM star_lists
+WHERE
+  updated_at < ?
+  AND user_id = ?;

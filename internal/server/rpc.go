@@ -126,10 +126,16 @@ func (s *RpcServer) GetRepositories(ctx context.Context, req *connect.Request[ap
 		optionalStarType = sql.NullInt16{Int16: int16(*req.Msg.StarType), Valid: true}
 	}
 
+	optionalListID := sql.NullInt32{Int32: 0, Valid: false}
+	if req.Msg.ListId != nil {
+		optionalListID = sql.NullInt32{Int32: *req.Msg.ListId, Valid: true}
+	}
+
 	releases, err := s.repository.GetReleasesForUserShortDescription(ctx, repository.GetReleasesForUserShortDescriptionParams{
 		UserID:       user.ID,
 		IsPrerelease: optionalPrerelease,
 		StarType:     optionalStarType,
+		ListID:       optionalListID,
 	})
 	if err != nil {
 		return nil, errors.Join(err, errors.New("failed to retrieve releases"))
@@ -336,4 +342,32 @@ func (s *RpcServer) ToggleUserOnboarded(ctx context.Context, req *connect.Reques
 	}
 
 	return connect.NewResponse(&apiv1.ToggleUserOnboardedResponse{}), nil
+}
+
+func (s *RpcServer) GetStarLists(ctx context.Context, req *connect.Request[apiv1.GetStarListsRequest]) (*connect.Response[apiv1.GetStarListsResponse], error) {
+	userIDAny := authn.GetInfo(ctx)
+	if userIDAny == nil {
+		return nil, errors.New("no user id in context")
+	}
+
+	userID, ok := userIDAny.(int)
+	if !ok {
+		return nil, errors.New("invalid user id in context")
+	}
+
+	starLists, err := s.repository.GetStarListsForUser(ctx, int32(userID))
+	if err != nil {
+		return nil, errors.Join(err, errors.New("failed to retrieve star lists"))
+	}
+
+	res := connect.NewResponse(&apiv1.GetStarListsResponse{})
+	for _, starList := range starLists {
+		res.Msg.Lists = append(res.Msg.Lists, &apiv1.StarList{
+			Id:        starList.ID,
+			Name:      starList.Name,
+			IsPrivate: starList.IsPrivate,
+		})
+	}
+
+	return res, nil
 }

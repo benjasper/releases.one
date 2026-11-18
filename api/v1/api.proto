@@ -52,6 +52,7 @@ message SyncResponse {
 message GetRepositoriesRequest {
 	bool prerelease = 1;
 	optional RepositoryStarType star_type = 2;
+	optional int32 list_id = 3;
 }
 message GetRepositoriesResponse {
 	repeated TimelineEntry timeline = 1;
@@ -77,6 +78,17 @@ message GetMyUserResponse {
 message LogoutRequest {}
 message LogoutResponse {}
 
+message StarList {
+	int32 id = 1;
+	string name = 2;
+	bool is_private = 3;
+}
+
+message GetStarListsRequest {}
+message GetStarListsResponse {
+	repeated StarList lists = 1;
+}
+
 message ToggleUserOnboardedRequest {}
 message ToggleUserOnboardedResponse {}
 
@@ -87,6 +99,7 @@ service ApiService {
 	rpc GetMyUser(GetMyUserRequest) returns (GetMyUserResponse);
 	rpc Logout(LogoutRequest) returns (LogoutResponse);
 	rpc ToggleUserOnboarded(ToggleUserOnboardedRequest) returns (ToggleUserOnboardedResponse);
+	rpc GetStarLists(GetStarListsRequest) returns (GetStarListsResponse);
 }
 
 message RefreshTokenRequest {}

@@ -50,6 +50,8 @@ const (
 	// ApiServiceToggleUserOnboardedProcedure is the fully-qualified name of the ApiService's
 	// ToggleUserOnboarded RPC.
 	ApiServiceToggleUserOnboardedProcedure = "/api.v1.ApiService/ToggleUserOnboarded"
+	// ApiServiceGetStarListsProcedure is the fully-qualified name of the ApiService's GetStarLists RPC.
+	ApiServiceGetStarListsProcedure = "/api.v1.ApiService/GetStarLists"
 	// AuthServiceRefreshTokenProcedure is the fully-qualified name of the AuthService's RefreshToken
 	// RPC.
 	AuthServiceRefreshTokenProcedure = "/api.v1.AuthService/RefreshToken"
@@ -63,6 +65,7 @@ type ApiServiceClient interface {
 	GetMyUser(context.Context, *connect.Request[v1.GetMyUserRequest]) (*connect.Response[v1.GetMyUserResponse], error)
 	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 	ToggleUserOnboarded(context.Context, *connect.Request[v1.ToggleUserOnboardedRequest]) (*connect.Response[v1.ToggleUserOnboardedResponse], error)
+	GetStarLists(context.Context, *connect.Request[v1.GetStarListsRequest]) (*connect.Response[v1.GetStarListsResponse], error)
 }
 
 // NewApiServiceClient constructs a client for the api.v1.ApiService service. By default, it uses
@@ -112,6 +115,12 @@ func NewApiServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(apiServiceMethods.ByName("ToggleUserOnboarded")),
 			connect.WithClientOptions(opts...),
 		),
+		getStarLists: connect.NewClient[v1.GetStarListsRequest, v1.GetStarListsResponse](
+			httpClient,
+			baseURL+ApiServiceGetStarListsProcedure,
+			connect.WithSchema(apiServiceMethods.ByName("GetStarLists")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -123,6 +132,7 @@ type apiServiceClient struct {
 	getMyUser            *connect.Client[v1.GetMyUserRequest, v1.GetMyUserResponse]
 	logout               *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
 	toggleUserOnboarded  *connect.Client[v1.ToggleUserOnboardedRequest, v1.ToggleUserOnboardedResponse]
+	getStarLists         *connect.Client[v1.GetStarListsRequest, v1.GetStarListsResponse]
 }
 
 // Sync calls api.v1.ApiService.Sync.
@@ -155,6 +165,11 @@ func (c *apiServiceClient) ToggleUserOnboarded(ctx context.Context, req *connect
 	return c.toggleUserOnboarded.CallUnary(ctx, req)
 }
 
+// GetStarLists calls api.v1.ApiService.GetStarLists.
+func (c *apiServiceClient) GetStarLists(ctx context.Context, req *connect.Request[v1.GetStarListsRequest]) (*connect.Response[v1.GetStarListsResponse], error) {
+	return c.getStarLists.CallUnary(ctx, req)
+}
+
 // ApiServiceHandler is an implementation of the api.v1.ApiService service.
 type ApiServiceHandler interface {
 	Sync(context.Context, *connect.Request[v1.SyncRequest]) (*connect.Response[v1.SyncResponse], error)
@@ -163,6 +178,7 @@ type ApiServiceHandler interface {
 	GetMyUser(context.Context, *connect.Request[v1.GetMyUserRequest]) (*connect.Response[v1.GetMyUserResponse], error)
 	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 	ToggleUserOnboarded(context.Context, *connect.Request[v1.ToggleUserOnboardedRequest]) (*connect.Response[v1.ToggleUserOnboardedResponse], error)
+	GetStarLists(context.Context, *connect.Request[v1.GetStarListsRequest]) (*connect.Response[v1.GetStarListsResponse], error)
 }
 
 // NewApiServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -208,6 +224,12 @@ func NewApiServiceHandler(svc ApiServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(apiServiceMethods.ByName("ToggleUserOnboarded")),
 		connect.WithHandlerOptions(opts...),
 	)
+	apiServiceGetStarListsHandler := connect.NewUnaryHandler(
+		ApiServiceGetStarListsProcedure,
+		svc.GetStarLists,
+		connect.WithSchema(apiServiceMethods.ByName("GetStarLists")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/api.v1.ApiService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ApiServiceSyncProcedure:
@@ -222,6 +244,8 @@ func NewApiServiceHandler(svc ApiServiceHandler, opts ...connect.HandlerOption) 
 			apiServiceLogoutHandler.ServeHTTP(w, r)
 		case ApiServiceToggleUserOnboardedProcedure:
 			apiServiceToggleUserOnboardedHandler.ServeHTTP(w, r)
+		case ApiServiceGetStarListsProcedure:
+			apiServiceGetStarListsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -253,6 +277,10 @@ func (UnimplementedApiServiceHandler) Logout(context.Context, *connect.Request[v
 
 func (UnimplementedApiServiceHandler) ToggleUserOnboarded(context.Context, *connect.Request[v1.ToggleUserOnboardedRequest]) (*connect.Response[v1.ToggleUserOnboardedResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ApiService.ToggleUserOnboarded is not implemented"))
+}
+
+func (UnimplementedApiServiceHandler) GetStarLists(context.Context, *connect.Request[v1.GetStarListsRequest]) (*connect.Response[v1.GetStarListsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.ApiService.GetStarLists is not implemented"))
 }
 
 // AuthServiceClient is a client for the api.v1.AuthService service.

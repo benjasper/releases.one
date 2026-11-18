@@ -1,4 +1,4 @@
-import { Component, createMemo, createResource, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
+import { Component, createEffect, createMemo, createResource, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { useConnect } from '~/context/connect-context'
 import { Card, CardContent, CardFooter, CardHeader } from '~/components/ui/card'
 import { timestampDate } from '@bufbuild/protobuf/wkt'
@@ -12,7 +12,7 @@ import { Skeleton } from '~/components/ui/skeleton'
 import { FiArrowUp, FiExternalLink, FiEye, FiFilter, FiStar } from 'solid-icons/fi'
 import { RepositoryStarType } from '~/lib/generated/api/v1/api_pb'
 import { AiFillStar } from 'solid-icons/ai'
-import StarTypeSelect from '~/components/star-type-select'
+import RepositorySourceSelect from '~/components/repository-source-select'
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import { useLocalStore } from '~/context/local-store'
 
@@ -31,9 +31,21 @@ const TimelinePage: Component = () => {
 		() => ({
 			prerelease: localStore.settings.showPrereleases,
 			starType: localStore.settings.selectedStarType ?? undefined,
+			listId: localStore.settings.selectedListId ?? undefined,
 		}),
 		args => connect.getRepositories(args)
 	)
+
+	const [starLists] = createResource(async () => (await connect.getStarLists({})).lists)
+
+	createEffect(() => {
+		const listId = localStore.settings.selectedListId
+		if (starLists.state !== 'ready' || listId === null || listId === undefined) return
+
+		if (!starLists().some(list => list.id === listId)) {
+			setLocalStore('settings', 'selectedListId', null)
+		}
+	})
 
 	const filteredTimeline = () =>
 		timeline()?.timeline.filter(x => x.repositoryName.toLowerCase().includes(search().toLowerCase())) ?? []
@@ -117,9 +129,14 @@ const TimelinePage: Component = () => {
 								</SwitchControl>
 							</Switch>
 
-							<StarTypeSelect
+							<RepositorySourceSelect
 								starType={localStore.settings.selectedStarType}
-								onChange={value => setLocalStore('settings', 'selectedStarType', value)}
+								listId={localStore.settings.selectedListId ?? null}
+								lists={starLists.state === 'ready' ? starLists() : []}
+								onChange={source => {
+									setLocalStore('settings', 'selectedStarType', source.starType)
+									setLocalStore('settings', 'selectedListId', source.listId)
+								}}
 							/>
 						</PopoverContent>
 					</Popover>

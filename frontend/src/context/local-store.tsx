@@ -8,6 +8,7 @@ type LocalStore = {
 		showPrereleases: boolean
 		showDescription: boolean
 		selectedStarType: RepositoryStarType | null
+		selectedListId: number | null
 	}
 }
 
@@ -19,6 +20,7 @@ export const LocalStoreProvider: ParentComponent = props => {
 			showPrereleases: true,
 			showDescription: true,
 			selectedStarType: null,
+			selectedListId: null,
 		},
 	}), {storage: localStorage})
 

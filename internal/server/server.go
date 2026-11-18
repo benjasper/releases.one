@@ -365,6 +365,18 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedTy
 		optionalStarType = sql.NullInt16{Int16: int16(starType), Valid: true}
 	}
 
+	optionalListID := sql.NullInt32{Int32: 0, Valid: false}
+	if listString := r.URL.Query().Get("list"); listString != "" {
+		listID, err := strconv.ParseInt(listString, 10, 32)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("List must be a valid list id"))
+			return
+		}
+
+		optionalListID = sql.NullInt32{Int32: int32(listID), Valid: true}
+	}
+
 	user, err := s.repository.GetUserByPublicID(r.Context(), userID)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -378,9 +390,10 @@ func (s *Server) GetFeed(w http.ResponseWriter, r *http.Request, feedType FeedTy
 	}
 
 	releases, err := s.repository.GetReleasesForUser(r.Context(), repository.GetReleasesForUserParams{
-		UserID: user.ID,
+		UserID:       user.ID,
 		IsPrerelease: optionalPrerelease,
 		StarType:     optionalStarType,
+		ListID:       optionalListID,
 	})
 	if err != nil {
 		http.Error(w, "Failed to retrieve releases: "+err.Error(), http.StatusInternalServerError)

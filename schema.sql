@@ -63,3 +63,30 @@ CREATE TABLE `repository_stars` (
   CONSTRAINT `repository_stars_ibfk_1` FOREIGN KEY (`repository_id`) REFERENCES `repositories` (`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
   CONSTRAINT `repository_stars_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON UPDATE NO ACTION ON DELETE CASCADE
 );
+
+-- Create "star_lists" table
+CREATE TABLE `star_lists` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `github_id` varchar(255) NOT NULL,
+  `user_id` int NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `slug` varchar(255) NOT NULL,
+  `is_private` bool NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `github_id` (`github_id`),
+  INDEX `user_id` (`user_id`),
+  CONSTRAINT `star_lists_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+);
+
+-- Create "star_list_repositories" table
+CREATE TABLE `star_list_repositories` (
+  `star_list_id` int NOT NULL,
+  `repository_id` int NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`star_list_id`, `repository_id`),
+  INDEX `repository_id` (`repository_id`),
+  CONSTRAINT `star_list_repositories_ibfk_1` FOREIGN KEY (`star_list_id`) REFERENCES `star_lists` (`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+  CONSTRAINT `star_list_repositories_ibfk_2` FOREIGN KEY (`repository_id`) REFERENCES `repositories` (`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+);

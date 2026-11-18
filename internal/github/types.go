@@ -205,3 +205,94 @@ type UserData struct {
 	TwoFactorAuthentication bool   `json:"two_factor_authentication"`
 	SiteAdmin               bool   `json:"site_admin"`
 }
+
+var StarListsQuery = `
+query StarLists($first: Int!, $after: String, $itemsFirst: Int!) {
+  viewer {
+    lists(first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        id
+        name
+        slug
+        isPrivate
+        items(first: $itemsFirst) {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          nodes {
+            ... on Repository {
+              id
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`
+
+var StarListItemsQuery = `
+query StarListItems($id: ID!, $first: Int!, $after: String) {
+  node(id: $id) {
+    ... on UserList {
+      items(first: $first, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          ... on Repository {
+            id
+          }
+        }
+      }
+    }
+  }
+}
+`
+
+type pageInfo struct {
+	EndCursor   string `json:"endCursor"`
+	HasNextPage bool   `json:"hasNextPage"`
+}
+
+type starListItems struct {
+	PageInfo pageInfo `json:"pageInfo"`
+	Nodes    []struct {
+		ID string `json:"id"`
+	} `json:"nodes"`
+}
+
+type StarListsResponse struct {
+	Viewer struct {
+		Lists struct {
+			PageInfo pageInfo `json:"pageInfo"`
+			Nodes    []struct {
+				ID        string        `json:"id"`
+				Name      string        `json:"name"`
+				Slug      string        `json:"slug"`
+				IsPrivate bool          `json:"isPrivate"`
+				Items     starListItems `json:"items"`
+			} `json:"nodes"`
+		} `json:"lists"`
+	} `json:"viewer"`
+}
+
+type StarListItemsResponse struct {
+	Node struct {
+		Items starListItems `json:"items"`
+	} `json:"node"`
+}
+
+type StarList struct {
+	ID            string
+	Name          string
+	Slug          string
+	IsPrivate     bool
+	RepositoryIDs []string
+}
