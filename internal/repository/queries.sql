@@ -72,7 +72,7 @@ FROM
 WHERE
   last_synced_at < ?
 ORDER BY
-  last_synced_at DESC
+  last_synced_at ASC
 LIMIT
   ?;
 
@@ -104,6 +104,7 @@ VALUES
 -- name: UpdateRepository :execresult
 UPDATE repositories
 SET
+  name = ?,
   url = ?,
   image_url = ?,
   image_size = ?,
@@ -125,20 +126,13 @@ LEFT JOIN
 WHERE
   user_id = ?;
 
--- name: InsertRepositoryStar :exec
+-- name: UpsertRepositoryStar :exec
 INSERT INTO
   repository_stars (repository_id, user_id, type, created_at, updated_at)
 VALUES
-  (?, ?, ?, ?, ?);
-
--- name: UpdateRepositoryStar :execresult
-UPDATE repository_stars
-SET
-  updated_at = ?
-WHERE
-  repository_id = ?
-  AND user_id = ?
-  AND type = ?;
+  (?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+  updated_at = VALUES(updated_at);
 
 -- name: DeleteRepositoryStarsUpdatedBefore :execresult
 DELETE FROM repository_stars

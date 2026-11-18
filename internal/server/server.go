@@ -196,25 +196,26 @@ func (s *Server) ScheduleJobs() {
 			interval = 8
 		}
 
+		staleBefore := time.Now().Add(time.Hour * -time.Duration(interval))
 		users, err := s.repository.GetUsersInNeedOfAnUpdate(context.Background(), repository.GetUsersInNeedOfAnUpdateParams{
-			LastSyncedAt: time.Now().Add(time.Hour * -time.Duration(interval)),
+			LastSyncedAt: staleBefore,
 			Limit:        100, // How many users to sync at a time
 		})
 		if err != nil {
-			log.Fatal(err)
+			slog.Error(fmt.Sprintf("Failed to fetch users in need of an update: %s", err.Error()))
+			return
 		}
-		slog.Info(fmt.Sprintf("Found %d user(s) in need of an update\n", len(users)))
+		slog.Info(fmt.Sprintf("Found %d user(s) in need of an update", len(users)))
 
 		for _, user := range users {
 			ctx, cancel := context.WithTimeoutCause(context.Background(), time.Minute*5, errors.New("syncing user took too long"))
-			defer cancel()
-			err = s.syncService.SyncUser(ctx, &user)
+			err = s.syncService.SyncUser(ctx, user.ID, staleBefore)
+			cancel()
 			if err != nil {
-				slog.Info(fmt.Sprintf("Failed to sync user: %s", err.Error()))
-				continue
+				slog.Error(fmt.Sprintf("Failed to sync user %s: %s", user.Username, err.Error()))
 			}
 		}
-	}, s))
+	}, s), gocron.WithSingletonMode(gocron.LimitModeReschedule))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -240,6 +241,7 @@ func (s *Server) GetLoginWithGithubCallback(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		slog.Error(fmt.Sprintf("problem with token: %s", err))
 		http.Error(w, "Problem with token", http.StatusInternalServerError)
+		return
 	}
 
 	if newToken != nil {

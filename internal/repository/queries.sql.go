@@ -720,7 +720,7 @@ FROM
 WHERE
   last_synced_at < ?
 ORDER BY
-  last_synced_at DESC
+  last_synced_at ASC
 LIMIT
   ?
 `
@@ -818,32 +818,6 @@ func (q *Queries) InsertRelease(ctx context.Context, arg InsertReleaseParams) er
 	return err
 }
 
-const insertRepositoryStar = `-- name: InsertRepositoryStar :exec
-INSERT INTO
-  repository_stars (repository_id, user_id, type, created_at, updated_at)
-VALUES
-  (?, ?, ?, ?, ?)
-`
-
-type InsertRepositoryStarParams struct {
-	RepositoryID int32
-	UserID       int32
-	Type         int8
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-}
-
-func (q *Queries) InsertRepositoryStar(ctx context.Context, arg InsertRepositoryStarParams) error {
-	_, err := q.db.ExecContext(ctx, insertRepositoryStar,
-		arg.RepositoryID,
-		arg.UserID,
-		arg.Type,
-		arg.CreatedAt,
-		arg.UpdatedAt,
-	)
-	return err
-}
-
 const updateRelease = `-- name: UpdateRelease :execresult
 UPDATE releases
 SET
@@ -894,6 +868,7 @@ func (q *Queries) UpdateRelease(ctx context.Context, arg UpdateReleaseParams) (s
 const updateRepository = `-- name: UpdateRepository :execresult
 UPDATE repositories
 SET
+  name = ?,
   url = ?,
   image_url = ?,
   image_size = ?,
@@ -907,6 +882,7 @@ WHERE
 `
 
 type UpdateRepositoryParams struct {
+	Name         string
 	Url          string
 	ImageUrl     string
 	ImageSize    int32
@@ -920,6 +896,7 @@ type UpdateRepositoryParams struct {
 
 func (q *Queries) UpdateRepository(ctx context.Context, arg UpdateRepositoryParams) (sql.Result, error) {
 	return q.db.ExecContext(ctx, updateRepository,
+		arg.Name,
 		arg.Url,
 		arg.ImageUrl,
 		arg.ImageSize,
@@ -929,32 +906,6 @@ func (q *Queries) UpdateRepository(ctx context.Context, arg UpdateRepositoryPara
 		arg.LastSyncedAt,
 		arg.Hash,
 		arg.ID,
-	)
-}
-
-const updateRepositoryStar = `-- name: UpdateRepositoryStar :execresult
-UPDATE repository_stars
-SET
-  updated_at = ?
-WHERE
-  repository_id = ?
-  AND user_id = ?
-  AND type = ?
-`
-
-type UpdateRepositoryStarParams struct {
-	UpdatedAt    time.Time
-	RepositoryID int32
-	UserID       int32
-	Type         int8
-}
-
-func (q *Queries) UpdateRepositoryStar(ctx context.Context, arg UpdateRepositoryStarParams) (sql.Result, error) {
-	return q.db.ExecContext(ctx, updateRepositoryStar,
-		arg.UpdatedAt,
-		arg.RepositoryID,
-		arg.UserID,
-		arg.Type,
 	)
 }
 
@@ -1027,6 +978,34 @@ type UpdateUserTokenParams struct {
 
 func (q *Queries) UpdateUserToken(ctx context.Context, arg UpdateUserTokenParams) error {
 	_, err := q.db.ExecContext(ctx, updateUserToken, arg.GithubToken, arg.ID)
+	return err
+}
+
+const upsertRepositoryStar = `-- name: UpsertRepositoryStar :exec
+INSERT INTO
+  repository_stars (repository_id, user_id, type, created_at, updated_at)
+VALUES
+  (?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+  updated_at = VALUES(updated_at)
+`
+
+type UpsertRepositoryStarParams struct {
+	RepositoryID int32
+	UserID       int32
+	Type         int8
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+func (q *Queries) UpsertRepositoryStar(ctx context.Context, arg UpsertRepositoryStarParams) error {
+	_, err := q.db.ExecContext(ctx, upsertRepositoryStar,
+		arg.RepositoryID,
+		arg.UserID,
+		arg.Type,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
 	return err
 }
 

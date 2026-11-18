@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"iter"
 	"log/slog"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/benjasper/releases.one/internal/github"
@@ -37,9 +39,21 @@ func NewSyncService(repository *repository.Queries, githubOAuthConfig *oauth2.Co
 	}
 }
 
-func (s *SyncService) SyncUser(ctx context.Context, user *repository.User) error {
-	s.userMutex.Lock(user.Username)
-	defer s.userMutex.Unlock(user.Username)
+// SyncUser syncs the user unless they have been synced since staleBefore, re-checking after acquiring the user lock
+// so that concurrent callers don't sync twice or use an outdated token
+func (s *SyncService) SyncUser(ctx context.Context, userID int32, staleBefore time.Time) error {
+	lockKey := strconv.Itoa(int(userID))
+	s.userMutex.Lock(lockKey)
+	defer s.userMutex.Unlock(lockKey)
+
+	user, err := s.repository.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if !user.LastSyncedAt.Before(staleBefore) {
+		return nil
+	}
 
 	slog.Info(fmt.Sprintf("Syncing user: %s", user.Username))
 
@@ -50,6 +64,7 @@ func (s *SyncService) SyncUser(ctx context.Context, user *repository.User) error
 		return err
 	}
 
+	savedToken := (*oauth2.Token)(&user.GithubToken)
 	if newToken != nil {
 		slog.Info(fmt.Sprintf("Saving refreshed token for user: %s", user.Username))
 		err = s.repository.UpdateUserToken(ctx, repository.UpdateUserTokenParams{
@@ -59,20 +74,27 @@ func (s *SyncService) SyncUser(ctx context.Context, user *repository.User) error
 		if err != nil {
 			return err
 		}
+		savedToken = newToken
 	}
 
-	err = s.syncRepositoriesAndReleases(ctx, user, githubService)
+	// GitHub refresh tokens are single-use, so a refresh during the sync must be persisted even if the sync fails
+	defer s.saveTokenIfRefreshed(context.WithoutCancel(ctx), &user, githubService, savedToken)
+
+	err = s.syncRepositoriesAndReleases(ctx, &user, githubService)
 	if err != nil {
 		return err
 	}
 
+	// datetime columns have second precision, so rows written in the same second as syncStartedAt must survive
+	cutoff := syncStartedAt.Truncate(time.Second)
+
 	// Star lists are optional, a failure must not block the regular sync or wipe existing memberships
-	if err := s.syncStarLists(ctx, user, githubService, syncStartedAt); err != nil {
+	if err := s.syncStarLists(ctx, &user, githubService, cutoff); err != nil {
 		slog.Error(fmt.Sprintf("Failed to sync star lists for user %s: %s", user.Username, err.Error()))
 	}
 
 	result, err := s.repository.DeleteRepositoryStarsUpdatedBefore(ctx, repository.DeleteRepositoryStarsUpdatedBeforeParams{
-		UpdatedAt: syncStartedAt,
+		UpdatedAt: cutoff,
 		UserID:    user.ID,
 	})
 	if err != nil {
@@ -98,80 +120,73 @@ func (s *SyncService) SyncUser(ctx context.Context, user *repository.User) error
 	return nil
 }
 
+func (s *SyncService) saveTokenIfRefreshed(ctx context.Context, user *repository.User, githubService *github.GitHubService, savedToken *oauth2.Token) {
+	token, err := githubService.Token()
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to get current token for user %s: %s", user.Username, err.Error()))
+		return
+	}
+
+	if token.AccessToken == savedToken.AccessToken && token.RefreshToken == savedToken.RefreshToken {
+		return
+	}
+
+	slog.Info(fmt.Sprintf("Saving token refreshed during sync for user: %s", user.Username))
+	err = s.repository.UpdateUserToken(ctx, repository.UpdateUserTokenParams{
+		GithubToken: repository.GitHubToken(*token),
+		ID:          user.ID,
+	})
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to save refreshed token for user %s: %s", user.Username, err.Error()))
+	}
+}
+
 func (s *SyncService) syncRepositoriesAndReleases(ctx context.Context, user *repository.User, githubService *github.GitHubService) error {
-	reposGroup, releasesCtx := errgroup.WithContext(ctx)
+	sources := []struct {
+		repos    func(context.Context) iter.Seq2[*github.Repository, error]
+		starType repository.RepositoryStarType
+	}{
+		{githubService.GetStarredRepos, repository.RepositoryStarTypeStar},
+		{githubService.GetWatchingRepos, repository.RepositoryStarTypeWatch},
+	}
 
-	reposGroup.Go(func() error {
-		releasesErrGroup, ctx := errgroup.WithContext(ctx)
-		releasesErrGroup.SetLimit(10)
+	sourcesGroup, sourcesCtx := errgroup.WithContext(ctx)
 
-		for repo, err := range githubService.GetStarredRepos(releasesCtx) {
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					slog.Error(fmt.Sprintf("Error syncing repositories (context canceled): %s", context.Cause(ctx)))
+	for _, source := range sources {
+		sourcesGroup.Go(func() error {
+			workers, workersCtx := errgroup.WithContext(sourcesCtx)
+			workers.SetLimit(10)
+
+			for repo, err := range source.repos(workersCtx) {
+				if err != nil {
+					// A failing worker cancels the fetch, so its error is the root cause
+					if workersErr := workers.Wait(); workersErr != nil {
+						return workersErr
+					}
+					return err
 				}
-				return err
+
+				workers.Go(func() error {
+					return s.syncRepository(workersCtx, repo, user, source.starType)
+				})
 			}
 
-			releasesErrGroup.Go(func() error {
-				return s.syncRepository(ctx, repo, user, repository.RepositoryStarTypeStar)
-			})
+			return workers.Wait()
+		})
+	}
+
+	err := sourcesGroup.Wait()
+	if err != nil {
+		if cause := context.Cause(ctx); cause != nil {
+			return errors.Join(err, cause)
 		}
-
-		err := releasesErrGroup.Wait()
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				slog.Error(fmt.Sprintf("Error syncing repositories (context canceled): %s", context.Cause(ctx)))
-			}
-
-			return err
-		}
-
-		return nil
-	})
-
-	reposGroup.Go(func() error {
-		releasesErrGroup, ctx := errgroup.WithContext(ctx)
-		releasesErrGroup.SetLimit(10)
-
-		for repo, err := range githubService.GetWatchingRepos(releasesCtx) {
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					slog.Error(fmt.Sprintf("Error syncing repositories (context canceled): %s", context.Cause(ctx)))
-				}
-				return err
-			}
-
-			releasesErrGroup.Go(func() error {
-				return s.syncRepository(ctx, repo, user, repository.RepositoryStarTypeWatch)
-			})
-		}
-
-		err := releasesErrGroup.Wait()
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				slog.Error(fmt.Sprintf("Error syncing repositories (context canceled): %s", context.Cause(ctx)))
-			}
-
-			return err
-		}
-
-		return nil
-	})
-
-	reposErr := reposGroup.Wait()
-	if reposErr != nil {
-		if errors.Is(reposErr, context.Canceled) {
-			slog.Error(fmt.Sprintf("Error syncing repositories (context canceled): %s", context.Cause(ctx)))
-		}
-
-		return reposErr
+		return err
 	}
 
 	return nil
 }
 
-func (s *SyncService) syncStarLists(ctx context.Context, user *repository.User, githubService *github.GitHubService, syncStartedAt time.Time) error {
+func (s *SyncService) syncStarLists(ctx context.Context, user *repository.User, githubService *github.GitHubService, cutoff time.Time) error {
 	lists, err := githubService.GetStarLists(ctx)
 	if err != nil {
 		return err
@@ -207,9 +222,6 @@ func (s *SyncService) syncStarLists(ctx context.Context, user *repository.User, 
 			}
 		}
 	}
-
-	// datetime columns have second precision, so rows written in the same second as syncStartedAt must survive
-	cutoff := syncStartedAt.Truncate(time.Second)
 
 	_, err = s.repository.DeleteStarListRepositoriesUpdatedBefore(ctx, repository.DeleteStarListRepositoriesUpdatedBeforeParams{
 		UpdatedAt: cutoff,
@@ -292,14 +304,19 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 
 		// Check hash
 		if hash != githubRepo.Hash {
+			githubRepo.Name = repo.NameWithOwner
+			githubRepo.Url = repo.URL
+			githubRepo.ImageUrl = fmt.Sprintf("https://opengraph.githubassets.com/1/%s", repo.NameWithOwner)
+			githubRepo.Private = repo.IsPrivate
 			githubRepo.Hash = hash
 			githubRepo.UpdatedAt = time.Now()
 
 			slog.Info(fmt.Sprintf("Repository hash changed, updating repository: %s", repo.NameWithOwner))
 			_, err = s.repository.UpdateRepository(ctx, repository.UpdateRepositoryParams{
 				ID:           githubRepo.ID,
+				Name:         githubRepo.Name,
 				Url:          githubRepo.Url,
-				ImageUrl:     fmt.Sprintf("https://opengraph.githubassets.com/1/%s", githubRepo.Name),
+				ImageUrl:     githubRepo.ImageUrl,
 				ImageSize:    githubRepo.ImageSize,
 				Private:      githubRepo.Private,
 				CreatedAt:    githubRepo.CreatedAt,
@@ -313,34 +330,15 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 		}
 	}
 
-	// Now check if the repository has already been starred/watched by the user
-	result, err := s.repository.UpdateRepositoryStar(ctx, repository.UpdateRepositoryStarParams{
-		UpdatedAt:    time.Now(),
+	err = s.repository.UpsertRepositoryStar(ctx, repository.UpsertRepositoryStarParams{
 		RepositoryID: githubRepo.ID,
 		UserID:       user.ID,
 		Type:         int8(starType),
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	})
-	if err != nil && errors.Is(err, sql.ErrNoRows) {
-	} else if err != nil {
-		return err
-	}
-	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
-	}
-
-	if rowsAffected == 0 {
-		slog.Info(fmt.Sprintf("No repository star found, creating new repository star: %s", repo.NameWithOwner))
-		err = s.repository.InsertRepositoryStar(ctx, repository.InsertRepositoryStarParams{
-			RepositoryID: githubRepo.ID,
-			UserID:       user.ID,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
-			Type:         int8(starType),
-		})
-		if err != nil {
-			return err
-		}
 	}
 
 	releases, err := s.repository.GetReleases(ctx, githubRepo.ID)
@@ -349,6 +347,10 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 	}
 
 	for _, ghRelease := range repo.Releases.Nodes {
+		if ghRelease.IsDraft {
+			continue
+		}
+
 		var existingRelease *repository.Release
 		existingReleaseIdx := slices.IndexFunc(releases, func(release repository.Release) bool {
 			return release.TagName == ghRelease.TagName
@@ -386,7 +388,12 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 				Hash:             hash,
 			})
 			if err != nil {
-				return err
+				if ctx.Err() != nil {
+					return err
+				}
+				// A broken release is retried next sync, it must not block the rest of the user's sync
+				slog.Error(fmt.Sprintf("Failed to insert release %s for repository %s: %s", ghRelease.TagName, githubRepo.Name, err.Error()))
+				continue
 			}
 		} else if hash != existingRelease.Hash {
 			author := ghRelease.Author.Name
@@ -409,7 +416,11 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 				Hash:             hash,
 			})
 			if err != nil {
-				return err
+				if ctx.Err() != nil {
+					return err
+				}
+				slog.Error(fmt.Sprintf("Failed to update release %s for repository %s: %s", ghRelease.TagName, githubRepo.Name, err.Error()))
+				continue
 			}
 		}
 	}
@@ -425,7 +436,7 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 		// The 10th release is at index 9 (0-indexed), delete everything older than it
 		tenthNewestRelease := &releases[9]
 
-		result, err = s.repository.DeleteReleasesOlderThan(ctx, repository.DeleteReleasesOlderThanParams{
+		result, err := s.repository.DeleteReleasesOlderThan(ctx, repository.DeleteReleasesOlderThanParams{
 			ReleasedAt:   tenthNewestRelease.ReleasedAt,
 			RepositoryID: githubRepo.ID,
 		})

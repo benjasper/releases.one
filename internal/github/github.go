@@ -16,6 +16,7 @@ import (
 
 type GitHubService struct {
 	client            *http.Client
+	tokenSource       oauth2.TokenSource
 	githubOAuthConfig *oauth2.Config
 }
 
@@ -32,11 +33,16 @@ func NewGitHubService(ctx context.Context, oauthConfig *oauth2.Config, token *oa
 		refreshedToken = newToken
 	}
 
-	client := oauthConfig.Client(ctx, newToken)
 	return &GitHubService{
-		client:            client,
+		client:            oauth2.NewClient(ctx, tokenSource),
+		tokenSource:       tokenSource,
 		githubOAuthConfig: oauthConfig,
 	}, refreshedToken, nil
+}
+
+// Token returns the current token, which differs from the initial one if the client refreshed it while in use
+func (s *GitHubService) Token() (*oauth2.Token, error) {
+	return s.tokenSource.Token()
 }
 
 var pageSize = 25
@@ -46,37 +52,10 @@ func (s *GitHubService) GetStarredRepos(ctx context.Context) iter.Seq2[*Reposito
 		hasNextPage := true
 		after := ""
 		for hasNextPage {
-			requestBody := make(map[string]string)
-			requestBody["query"] = StarredReposQuery(pageSize, after)
-			requestJson, err := json.Marshal(requestBody)
-			if err != nil {
-				yield(nil, err)
-				return
-			}
-
-			req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", bytes.NewBuffer(requestJson))
-			if err != nil {
-				yield(nil, err)
-				return
-			}
-
-			req.Header.Set("User-Agent", "releases.one")
-
-			resp, err := s.client.Do(req)
-			if err != nil {
-				yield(nil, errors.Join(err, fmt.Errorf("failed to make starred repositories request to GitHub")))
-				return
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode != http.StatusOK {
-				yield(nil, fmt.Errorf("unexpected response from GitHub, while fetching starred repos, status: %s", resp.Status))
-				return
-			}
-
 			var starredReposResponse StarredReposResponse
-			if err := json.NewDecoder(resp.Body).Decode(&starredReposResponse); err != nil {
-				yield(nil, err)
+			err := s.postGraphQL(ctx, map[string]any{"query": StarredReposQuery(pageSize, after)}, &starredReposResponse)
+			if err != nil {
+				yield(nil, errors.Join(err, fmt.Errorf("failed to fetch starred repositories")))
 				return
 			}
 
@@ -110,37 +89,10 @@ func (s *GitHubService) GetWatchingRepos(ctx context.Context) iter.Seq2[*Reposit
 		hasNextPage := true
 		after := ""
 		for hasNextPage {
-			requestBody := make(map[string]string)
-			requestBody["query"] = WatchingReposQuery(pageSize, after)
-			requestJson, err := json.Marshal(requestBody)
-			if err != nil {
-				yield(nil, err)
-				return
-			}
-
-			req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", bytes.NewBuffer(requestJson))
-			if err != nil {
-				yield(nil, err)
-				return
-			}
-
-			req.Header.Set("User-Agent", "releases.one")
-
-			resp, err := s.client.Do(req)
-			if err != nil {
-				yield(nil, errors.Join(err, fmt.Errorf("failed to make watching repositories request to GitHub")))
-				return
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode != http.StatusOK {
-				yield(nil, fmt.Errorf("unexpected response from GitHub, while fetching watching repos, status: %s", resp.Status))
-				return
-			}
-
 			var watchingReposResponse WatchingReposResponse
-			if err := json.NewDecoder(resp.Body).Decode(&watchingReposResponse); err != nil {
-				yield(nil, err)
+			err := s.postGraphQL(ctx, map[string]any{"query": WatchingReposQuery(pageSize, after)}, &watchingReposResponse)
+			if err != nil {
+				yield(nil, errors.Join(err, fmt.Errorf("failed to fetch watching repositories")))
 				return
 			}
 
@@ -169,8 +121,8 @@ func (s *GitHubService) GetWatchingRepos(ctx context.Context) iter.Seq2[*Reposit
 	}
 }
 
-func (s *GitHubService) graphql(ctx context.Context, query string, variables map[string]any, out any) error {
-	requestJson, err := json.Marshal(map[string]any{"query": query, "variables": variables})
+func (s *GitHubService) postGraphQL(ctx context.Context, payload any, out any) error {
+	requestJson, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
@@ -192,6 +144,10 @@ func (s *GitHubService) graphql(ctx context.Context, query string, variables map
 		return fmt.Errorf("unexpected response from GitHub GraphQL API, status: %s", resp.Status)
 	}
 
+	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+func (s *GitHubService) graphql(ctx context.Context, query string, variables map[string]any, out any) error {
 	var response struct {
 		Message string `json:"message"`
 		Errors  []struct {
@@ -199,7 +155,7 @@ func (s *GitHubService) graphql(ctx context.Context, query string, variables map
 		} `json:"errors"`
 		Data json.RawMessage `json:"data"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := s.postGraphQL(ctx, map[string]any{"query": query, "variables": variables}, &response); err != nil {
 		return err
 	}
 

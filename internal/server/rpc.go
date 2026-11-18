@@ -56,12 +56,10 @@ func (s *RpcServer) Sync(ctx context.Context, req *connect.Request[apiv1.SyncReq
 	}
 
 	// Only sync if it's been more than 24 hours since the last sync
-	if user.LastSyncedAt.Before(time.Now().Add(-1 * time.Hour * 24)) {
-		err = s.syncService.SyncUser(ctx, &user)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to sync user: %s", err.Error()))
-			return nil, errors.Join(err, errors.New("failed to sync user"))
-		}
+	err = s.syncService.SyncUser(ctx, user.ID, time.Now().Add(-1*time.Hour*24))
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to sync user: %s", err.Error()))
+		return nil, errors.Join(err, errors.New("failed to sync user"))
 	}
 
 	releases, err := s.repository.GetReleasesForUserShortDescription(ctx, repository.GetReleasesForUserShortDescriptionParams{
