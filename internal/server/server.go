@@ -49,9 +49,10 @@ type Server struct {
 	baseURL           *url.URL
 	distFS            *fs.FS
 	indexHTML         []byte
+	faviconICO        []byte
 }
 
-func NewServer(config *config.Config, repository *repository.Queries, githubOAuthConfig *oauth2.Config, baseURL *url.URL, distFS *fs.FS, indexHTML []byte) *Server {
+func NewServer(config *config.Config, repository *repository.Queries, githubOAuthConfig *oauth2.Config, baseURL *url.URL, distFS *fs.FS, indexHTML []byte, faviconICO []byte) *Server {
 	return &Server{
 		config:            config,
 		repository:        repository,
@@ -60,6 +61,7 @@ func NewServer(config *config.Config, repository *repository.Queries, githubOAut
 		baseURL:           baseURL,
 		distFS:            distFS,
 		indexHTML:         indexHTML,
+		faviconICO:        faviconICO,
 	}
 }
 
@@ -74,7 +76,7 @@ func (s *Server) Start() {
 		if rawToken == "" {
 			cookies := req.CookiesNamed("access_token")
 			if len(cookies) == 0 {
-				return nil, errors.New("missing authorization")
+				return nil, authn.Errorf("missing authorization")
 			}
 
 			rawToken = cookies[0].Value
@@ -83,7 +85,7 @@ func (s *Server) Start() {
 		userID, err := validateAccessTokenClaims(rawToken, []byte(s.config.JWTSecret))
 		if err != nil {
 			slog.Error(fmt.Sprintf("Invalid access token: %s", err.Error()))
-			return nil, errors.New("invalid token")
+			return nil, authn.Errorf("invalid token")
 		}
 
 		return userID, nil
@@ -123,6 +125,11 @@ func (s *Server) Start() {
 		w.Write(indexHtml.Bytes())
 	})
 	mux.Handle("/assets/", http.FileServerFS(*s.distFS))
+	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/x-icon")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Write(s.faviconICO)
+	})
 
 	s.ScheduleJobs()
 

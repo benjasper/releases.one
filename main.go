@@ -27,6 +27,9 @@ var distFS embed.FS
 //go:embed internal/templates/index.html
 var indexHTML []byte
 
+//go:embed internal/templates/favicon.ico
+var faviconICO []byte
+
 func DistFS() *fs.FS {
 	efs, err := fs.Sub(distFS, "frontend/dist")
 	if err != nil {
@@ -82,6 +85,6 @@ func main() {
 
 	repository := repository.New(db)
 
-	server := server.NewServer(cfg, repository, oauthConfig, baseURL, DistFS(), indexHTML)
+	server := server.NewServer(cfg, repository, oauthConfig, baseURL, DistFS(), indexHTML, faviconICO)
 	server.Start()
 }
