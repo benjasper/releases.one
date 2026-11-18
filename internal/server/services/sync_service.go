@@ -261,7 +261,7 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 
 	githubRepo, err := s.repository.GetRepositoryByGithubID(ctx, repo.ID)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
-		slog.Info(fmt.Sprintf("No repository found, creating new repository: %s", repo.NameWithOwner))
+		slog.Debug(fmt.Sprintf("No repository found, creating new repository: %s", repo.NameWithOwner))
 
 		// openGraphImageSize, err := githubService.GetImageSize(ctx, repo.OpenGraphImageURL)
 		// if err != nil {
@@ -311,7 +311,7 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 			githubRepo.Hash = hash
 			githubRepo.UpdatedAt = time.Now()
 
-			slog.Info(fmt.Sprintf("Repository hash changed, updating repository: %s", repo.NameWithOwner))
+			slog.Debug(fmt.Sprintf("Repository hash changed, updating repository: %s", repo.NameWithOwner))
 			_, err = s.repository.UpdateRepository(ctx, repository.UpdateRepositoryParams{
 				ID:           githubRepo.ID,
 				Name:         githubRepo.Name,
@@ -366,7 +366,7 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 		}
 
 		if existingRelease == nil {
-			slog.Info(fmt.Sprintf("Release not found, creating new release for user %s and repository %s: %s", user.Username, githubRepo.Name, ghRelease.TagName))
+			slog.Debug(fmt.Sprintf("Release not found, creating new release for user %s and repository %s: %s", user.Username, githubRepo.Name, ghRelease.TagName))
 			author := ghRelease.Author.Name
 			if author == "" {
 				author = ghRelease.Author.Login
@@ -401,7 +401,7 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 				author = ghRelease.Author.Login
 			}
 
-			slog.Info(fmt.Sprintf("Release hash changed (old: %d, new: %d), updating release: %s for repository %s", existingRelease.Hash, hash, ghRelease.Name, githubRepo.Name))
+			slog.Debug(fmt.Sprintf("Release hash changed (old: %d, new: %d), updating release: %s for repository %s", existingRelease.Hash, hash, ghRelease.Name, githubRepo.Name))
 			_, err = s.repository.UpdateRelease(ctx, repository.UpdateReleaseParams{
 				ID:               existingRelease.ID,
 				GithubID:         ghRelease.ID,
@@ -448,7 +448,7 @@ func (s *SyncService) syncRepository(ctx context.Context, repo *github.Repositor
 		if err != nil {
 			return err
 		}
-		slog.Info(fmt.Sprintf("Deleted %d releases older than %s for repository: %s", rowsAffected, tenthNewestRelease.ReleasedAt.String(), repo.NameWithOwner))
+		slog.Debug(fmt.Sprintf("Deleted %d releases older than %s for repository: %s", rowsAffected, tenthNewestRelease.ReleasedAt.String(), repo.NameWithOwner))
 	}
 
 	return nil

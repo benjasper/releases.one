@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"log/slog"
 	"net/url"
+	"os"
 
 	"github.com/benjasper/releases.one/internal/config"
 	"github.com/benjasper/releases.one/internal/migrate"
@@ -40,6 +42,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel})))
 
 	if cfg.IsProduction {
 		log.Println("Starting in production mode")

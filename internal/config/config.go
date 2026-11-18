@@ -1,16 +1,21 @@
 package config
 
-import "github.com/caarlos0/env/v11"
+import (
+	"log/slog"
+
+	"github.com/caarlos0/env/v11"
+)
 
 type Config struct {
-	BaseURL                 string `env:"BASE_URL,required"`
-	IsProduction            bool   `env:"IS_PRODUCTION,required"`
-	JWTSecret               string `env:"JWT_SECRET,required"`
-	GithubClientID          string `env:"GITHUB_CLIENT_ID,required"`
-	GithubClientSecret      string `env:"GITHUB_CLIENT_SECRET,required"`
-	DatabaseURL             string `env:"DATABASE_URL,required"`
-	UserSyncInterval        int    `env:"USER_SYNC_INTERVAL,required"`
-	LoginSuccessRedirectURL string `env:"LOGIN_SUCCESS_REDIRECT_URL,required"`
+	BaseURL                 string     `env:"BASE_URL,required"`
+	IsProduction            bool       `env:"IS_PRODUCTION,required"`
+	JWTSecret               string     `env:"JWT_SECRET,required"`
+	GithubClientID          string     `env:"GITHUB_CLIENT_ID,required"`
+	GithubClientSecret      string     `env:"GITHUB_CLIENT_SECRET,required"`
+	DatabaseURL             string     `env:"DATABASE_URL,required"`
+	UserSyncInterval        int        `env:"USER_SYNC_INTERVAL,required"`
+	LoginSuccessRedirectURL string     `env:"LOGIN_SUCCESS_REDIRECT_URL,required"`
+	LogLevel                slog.Level `env:"LOG_LEVEL" envDefault:"info"`
 }
 
 func ParseConfig() (*Config, error) {
